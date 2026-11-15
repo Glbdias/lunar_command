@@ -989,13 +989,9 @@ function fit() {
   document.body.classList.toggle('mobile', mobile);
   if (mobile) {
     const i = safeInsets(), aw = W - i.l - i.r, ah = H - i.t - i.b;
-    let kx = aw / 330, ky = ah / 540;
-    // tela em pé (celular/tablet): preenche a tela inteira, sem faixas.
-    // tela deitada (computador): mantém a proporção para não deformar demais.
-    const r = ky / kx;
-    if (r < 0.7 || r > 1.6) kx = ky = Math.min(kx, ky);
+    const k = Math.min(aw / 330, ah / 540);
     dev.style.left = (i.l + aw / 2) + 'px'; dev.style.top = (i.t + ah / 2) + 'px';
-    dev.style.transform = `translate(-50%, -50%) scale(${kx}, ${ky})`;
+    dev.style.transform = `translate(-50%, -50%) scale(${k})`;
   } else {
     const k = Math.min(W / 380, H / 630, 1.6);
     dev.style.left = '50%'; dev.style.top = '50%';

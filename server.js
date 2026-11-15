@@ -7,8 +7,10 @@ const path = require('path');
 
 const PORT = process.env.PORT || 5173;
 const PUB = path.join(__dirname, 'public');
-const CACHE = path.join(__dirname, 'cache');
-fs.mkdirSync(CACHE, { recursive: true });
+// pasta de cache; se o disco for somente leitura (alguns serviços de hospedagem), usa a pasta temporária
+let CACHE = path.join(__dirname, 'cache');
+try { fs.mkdirSync(CACHE, { recursive: true }); }
+catch (e) { CACHE = path.join(require('os').tmpdir(), 'zuno-cache'); fs.mkdirSync(CACHE, { recursive: true }); }
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -29,7 +31,7 @@ async function fetchCached(key, url) {
     const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const buf = Buffer.from(await r.arrayBuffer());
-    fs.writeFileSync(file, buf);
+    try { fs.writeFileSync(file, buf); } catch (e) { /* sem cache em disco: segue sem guardar */ }
     return { buf, src: 'live' };
   } catch (e) {
     if (fs.existsSync(file)) return { buf: fs.readFileSync(file), src: 'cache' };

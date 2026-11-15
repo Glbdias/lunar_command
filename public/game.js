@@ -447,33 +447,30 @@ function hint() {
 }
 
 /* ================= plantação ================= */
-// As 4 cúpulas usam os mesmos elementos (vidro aceso, rótulo e status). As de baixo, quando liberadas,
-// ganham uma base (podbase) cobrindo a placa "PLANTAÇÃO BLOQUEADA" e as listras do desenho original.
-const PODS = [
-  { inn: [55, 165, 97, 62], bgd: 'dome_in_l.png', label: [66, 235, 80, 16], status: [55, 253, 97, 47] },
-  { inn: [176, 158, 99, 69], bgd: 'dome_in_r.png', label: [186, 235, 84, 16], status: [174, 253, 104, 47] },
-  { inn: [57, 322, 95, 62], bgd: 'dome_in_l.png', label: [66, 388, 80, 16], status: [56, 406, 97, 45], base: [50, 384, 110, 68] },
-  { inn: [178, 322, 95, 62], bgd: 'dome_in_r.png', label: [187, 388, 84, 16], status: [176, 406, 100, 45], base: [170, 384, 112, 68] }
-];
+// Cada cúpula liberada é a mesma peça (assets/pod.png: cúpula da arte original, vazia, com rótulo e
+// caixa de status limpos), colocada por cima do desenho. As 4 ficam idênticas; as de baixo cobrem a
+// arte de "bloqueada". Planta, nome e status ficam dentro da peça em % (acompanham o tamanho dela).
+// as de baixo ficam um pouco menores (mesma proporção das de cima) para não encostar nos botões
+const PODS = [[44, 136, 118, 167], [165, 136, 118, 167], [50, 300, 106, 150], [171, 300, 106, 150]];
 const stageScale = p => { if (p.left <= 0) return 1; const f = 1 - p.left / p.total; return f < .34 ? .3 : f < .67 ? .55 : .8; };
 function plantHTML(k, sc) {
   const c = CROPS[k];
-  return c.svg ? `<div class="plant" style="width:48%;margin-left:-24%;transform:scale(${sc})">${ART.rabanete()}</div>`
-    : `<div class="plant" style="width:100%;left:0;bottom:0;transform:scale(${sc})"><img src="${A(c.img)}" alt=""></div>`;
+  return c.svg ? `<div class="plant" style="width:46%;left:27%;transform:scale(${sc})">${ART.rabanete()}</div>`
+    : `<div class="plant" style="width:96%;left:2%;transform:scale(${sc})"><img src="${A(c.img)}" alt=""></div>`;
 }
 function renderFarm() {
-  const html = PODS.map((P, i) => {
+  const html = PODS.map((r, i) => {
     const p = S.plots[i];
     if (i >= slotsOpen()) return ''; // bloqueada: já está desenhada no fundo
     const ready = p.crop && p.left <= 0;
-    const inner = `<div class="dome-in ${ready ? 'ready' : ''}" data-pod="${i}" style="${pos(P.inn)}"><img class="bgd" src="${A(P.bgd)}" alt="">${p.crop ? plantHTML(p.crop, stageScale(p)) : ''}</div>`;
     const name = p.crop ? `${CROPS[p.crop].icon}${CROPS[p.crop].name.toUpperCase()}` : 'VAZIO';
     let st;
-    if (!p.crop) st = `<div class="days">VAZIO</div><button class="pill-btn green small" style="width:92%" data-plant="${i}">+ PLANTAR</button>`;
-    else if (ready) st = `<div class="ok-pill">✔ PRONTO!</div><button class="img-btn" data-harvest="${i}" aria-label="Colher" style="width:93px;height:28px;background-image:url(${A('btn_colher.png')})"></button>`;
+    if (!p.crop) st = `<button class="pill-btn green plantar" data-plant="${i}">+ PLANTAR</button>`;
+    else if (ready) st = `<div class="ok-pill">✔ PRONTO!</div><button class="img-btn colher" data-harvest="${i}" aria-label="Colher" style="background-image:url(${A('btn_colher.png')})"></button>`;
     else st = `<div class="days">🕐 ${p.left} DIA${p.left > 1 ? 'S' : ''}</div><div class="prog"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
-    return (P.base ? `<div class="podbase" style="${pos(P.base)}"></div>` : '') + inner +
-      `<div class="plabel" style="${pos(P.label)}">${name}</div><div class="pstatus" style="${pos(P.status)}">${st}</div>`;
+    return `<div class="pod" style="${pos(r)}"><img class="podimg" src="${A('pod.png')}" alt="">
+      <div class="pod-in ${ready ? 'ready' : ''}" data-pod="${i}">${p.crop ? plantHTML(p.crop, stageScale(p)) : ''}</div>
+      <div class="plabel">${name}</div><div class="pstatus">${st}</div></div>`;
   }).join('');
   layer(html + `
     <div class="chip" style="left:8px;top:70px">💧 Água: ${S.water}</div>
@@ -481,7 +478,7 @@ function renderFarm() {
     <button class="chip" id="cropInfo" style="left:8px;top:94px">🧪 NASA</button>`);
   $$('[data-plant]').forEach(b => b.onclick = () => choosePlant(+b.dataset.plant));
   $$('[data-harvest]').forEach(b => b.onclick = () => harvest(+b.dataset.harvest));
-  $$('.dome-in').forEach(d => d.onclick = () => { const i = +d.dataset.pod, p = S.plots[i]; if (!p.crop) choosePlant(i); else if (p.left <= 0) harvest(i); else toast(`🌱 Faltam ${p.left} dia(s)`); });
+  $$('.pod-in').forEach(d => d.onclick = () => { const i = +d.dataset.pod, p = S.plots[i]; if (!p.crop) choosePlant(i); else if (p.left <= 0) harvest(i); else toast(`🌱 Faltam ${p.left} dia(s)`); });
   $('#ice').onclick = collectWater;
   $('#cropInfo').onclick = openNasa;
   tip('farm', 'Esta é a plantação! As plantas são estudadas de verdade pela NASA. Plantar usa <b>água</b> e um pouco de <b>energia</b>; colher dá <b>Elixir</b> para o Zuno.');

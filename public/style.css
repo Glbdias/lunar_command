@@ -97,13 +97,19 @@ button.chip:active { transform: translateY(1px); }
 @keyframes hover { 50% { transform: translateY(-4px); } }
 
 /* ---------- plantação ---------- */
-.dome-in { position: absolute; overflow: hidden; border-radius: 6px; }
-.dome-in > img.bgd { position: absolute; inset: 0; width: 100%; height: 100%; }
-.dome-in .plant { position: absolute; left: 50%; bottom: 8%; transform-origin: 50% 100%; transition: transform .6s; }
-.dome-in .plant img, .dome-in .plant svg { display: block; width: 100%; height: auto; }
-.dome-in.ready { cursor: pointer; }
-.dome-in.ready::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 14px rgba(140,255,120,.9); border-radius: 6px; animation: glow 1.2s infinite alternate; }
+/* cúpula liberada = peça única (pod.png) com planta, nome e status dentro, em % */
+.pod { position: absolute; }
+.pod > .podimg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.pod-in { position: absolute; left: 5.9%; top: 11.4%; width: 87.3%; height: 44.3%; border-radius: 50% 50% 4px 4px / 45% 45% 4px 4px; cursor: pointer; }
+.pod-in .plant { position: absolute; bottom: 7%; transform-origin: 50% 100%; transition: transform .6s; }
+.pod-in .plant img, .pod-in .plant svg { display: block; width: 100%; height: auto; }
+.pod-in.ready::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 14px rgba(140,255,120,.9); border-radius: inherit; animation: glow 1.2s infinite alternate; }
 @keyframes glow { to { opacity: .35; } }
+.pod .plabel { left: 15.3%; top: 56.9%; width: 71.2%; height: 11.4%; }
+.pod .pstatus { left: 5.9%; top: 70.7%; width: 89%; height: 26.9%; background: transparent; }
+.pod .pstatus .pill-btn.small { width: 90%; }
+.pod .pstatus .plantar { width: 90%; font-size: 13px; padding: 5px 0; border-radius: 12px; }
+.pod .pstatus .colher { width: 88%; height: 22px; }
 .plabel { position: absolute; display: flex; align-items: center; justify-content: center; gap: 4px; background: linear-gradient(#e6edff, #b9c8ee); border-radius: 6px; color: #1a2558; font-family: 'Lilita One'; font-size: 13px; letter-spacing: .3px; }
 .plabel img, .plabel svg { height: 15px; width: auto; }
 .pstatus { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #2a3f8c; border-radius: 8px; padding: 1px; }
@@ -115,8 +121,6 @@ button.chip:active { transform: translateY(1px); }
 .img-btn { display: block; background-size: 100% 100%; background-repeat: no-repeat; }
 .img-btn:active:not(:disabled) { transform: translateY(2px); }
 .img-btn:disabled { filter: grayscale(.85) brightness(.75); }
-/* base das cúpulas de baixo quando liberadas (mesmo visual das de cima) */
-.podbase { position: absolute; border-radius: 12px; background: linear-gradient(#aebfe8, #8299d4); border: 2px solid #4a5f9e; box-shadow: inset 0 2px 0 #dbe5ff, 0 3px 6px rgba(10,20,70,.35); }
 .lock-label { position: absolute; display: grid; place-items: center; text-align: center; background: #263a84; border-radius: 8px; font-family: 'Lilita One'; font-size: 12px; line-height: 1.05; color: #dfe7ff; }
 
 /* ---------- exploração ---------- */

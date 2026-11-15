@@ -1,0 +1,12 @@
+# respostas da NASA guardadas pelo server.js (geradas automaticamente)
+cache/
+
+# dependências / sistema
+node_modules/
+.DS_Store
+Thumbs.db
+
+# configurações locais de editor/ferramentas
+.vscode/
+.idea/
+.claude/

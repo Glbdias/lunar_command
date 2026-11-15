@@ -39,6 +39,27 @@ async function fetchCached(key, url) {
   }
 }
 
+// OSD-895: baixar e ler o ZIP ISA é caro, então guarda o resultado já extraído e só refaz a cada 24 h.
+// Se a NASA falhar, entrega a última cópia guardada (com a data de quando foi obtida).
+const { fetchOSD895 } = require('./lib/osd895');
+const OSD895_TTL = 24 * 3600 * 1000;
+let osd895Mem = null, osd895Pending = null;
+async function getOSD895() {
+  const file = path.join(CACHE, 'osd895.json');
+  if (!osd895Mem && fs.existsSync(file)) { try { osd895Mem = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { /* cache corrompido */ } }
+  const age = osd895Mem ? Date.now() - Date.parse(osd895Mem.source.fetchedAt) : Infinity;
+  if (osd895Mem && age < OSD895_TTL) return { data: osd895Mem, src: 'cache' };
+  try {
+    osd895Pending = osd895Pending || fetchOSD895();
+    osd895Mem = await osd895Pending;
+    try { fs.writeFileSync(file, JSON.stringify(osd895Mem)); } catch (e) { /* sem cache em disco */ }
+    return { data: osd895Mem, src: 'live' };
+  } catch (e) {
+    if (osd895Mem) return { data: osd895Mem, src: 'cache' };
+    throw e;
+  } finally { osd895Pending = null; }
+}
+
 function send(res, code, body, type, extra = {}) {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-cache', ...extra });
   res.end(body);
@@ -49,6 +70,11 @@ const server = http.createServer(async (req, res) => {
   const p = decodeURIComponent(url.pathname);
 
   try {
+    // NASA OSDR OSD-895 — medições de crescimento extraídas do ZIP ISA
+    if (p === '/api/osd895') {
+      const { data, src } = await getOSD895();
+      return send(res, 200, JSON.stringify(data), 'application/json; charset=utf-8', { 'X-Data-Source': src });
+    }
     // NASA OSDR — metadados de estudo (ex.: /api/osdr/895)
     let m = p.match(/^\/api\/osdr\/(\d{1,5})$/);
     if (m) {

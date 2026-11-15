@@ -161,6 +161,12 @@ button.chip:active { transform: translateY(1px); }
 .costbox .row .v { flex: 1; text-align: right; font-family: 'Lilita One'; font-size: 11.5px; padding: 0 5px; border-radius: 6px; background: linear-gradient(#8ff36a, #3cc23a); -webkit-text-stroke: 2.5px #155a14; paint-order: stroke fill; line-height: 14px; }
 .costbox .row .v.no { background: linear-gradient(#ff8a96, #e8233a); -webkit-text-stroke-color: #5a0f1a; }
 .costbox .img-btn { width: 100%; height: 19px; flex: none; }
+/* desativado (falta recurso): continua legível, só apagado */
+.costbox .img-btn:disabled { filter: saturate(.45) brightness(.95); opacity: .6; }
+/* textos nítidos no painel de melhorias */
+.updesc { position: absolute; display: flex; align-items: center; padding: 0 3px; border-radius: 4px; font-weight: 600; font-size: 9.5px; line-height: 1.2; color: #fff; text-shadow: 0 1px 1px #0009; overflow: hidden; }
+.updesc > span { display: block; }
+.updesc b { color: #ffe14d; font-weight: 700; }
 /* card da Base é mais baixo: versão compacta para caber 3 custos + botão */
 .costbox.compact { padding: 2px 4px 3px; gap: 1px; }
 .costbox.compact .hd { font-size: 8px; }

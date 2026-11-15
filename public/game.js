@@ -647,6 +647,13 @@ function openUpgrades() {
   const at = ([x, y, w, h]) => pos([x, y, w, h]);
   const segs = (n, on, cls, r) => `<div class="levels ${cls}" style="${at(r)}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</div>`;
   let h = `<img src="${A('modal_upg.webp')}" style="width:100%;height:100%;display:block" alt="Melhorias">`;
+  // textos pequenos da arte ficam borrados: substituídos por texto nítido (e que diz o efeito real)
+  const desc = (r, bg, txt) => `<div class="updesc" style="${at(r)};background:${bg}"><span>${txt}</span></div>`;
+  const nextR = S.rocket < 5 ? ROCKET[S.rocket] : null;
+  h += desc([40, 66, 222, 26], '#11245f', 'Melhore sua base e a plantação, e conserte o foguete do Zuno!');
+  h += desc([109, 123, 104, 23], '#1a3157', S.baseLvl < 5 ? `Tanque de O₂: <b>${O2_CAP[S.baseLvl - 1]} → ${O2_CAP[S.baseLvl]}</b>` : `Tanque máximo: <b>${O2_CAP[4]}</b> de O₂`);
+  h += desc([110, 215, 102, 26], '#1e3a7a', ['Libera a <b>3ª cúpula</b> e usa menos 💧', 'Libera a <b>4ª cúpula</b> e usa menos 💧', 'Plantas crescem <b>1 dia</b> mais rápido', 'Plantação no <b>nível máximo</b>'][S.farmLvl - 1]);
+  h += desc([110, 316, 100, 27], '#1c3570', nextR ? `Próxima: <b>${nextR.name}</b> (${nextR.game === 'wires' ? 'fios' : 'canos'})` : 'Foguete <b>pronto</b>!');
   // base
   h += segs(5, S.baseLvl, 'green', [110, 149, 106, 16]);
   if (S.baseLvl < 5) { const c = scaled(UPG.base.costs[S.baseLvl - 1]); h += `<div class="costbox compact" style="${at([215, 103, 72, 74])}">${costBox(c, ['e', 'o', 's'], 'data-up="base"', canPay(c), true)}</div>`; }

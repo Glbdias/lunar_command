@@ -24,16 +24,24 @@ O projeto já vem configurado (`vercel.json`): é só importar o repositório no
 ## Integração com a NASA
 
 ### NASA OSDR (Open Science Data Repository) — plantação
-`GET https://osdr.nasa.gov/osdr/data/osd/meta/{id}` → via `/api/osdr/{id}`
+**OSD-895 — estufa EDEN ISS, Antártida (Terra), 2018** → via `/api/osd895` (`lib/osd895.js`)
 
-| Estudo | O que extraímos | Vira no jogo |
+A API `https://osdr.nasa.gov/osdr/data/osd/files/895` só lista os arquivos. O servidor:
+1. baixa o ZIP de metadados ISA;
+2. lê as tabelas `s_OSD-895.txt` e `a_OSD-895_*.txt`;
+3. une os registros por *Sample Name*;
+4. guarda o resultado em cache (24 h no PC, 1 dia na CDN do Vercel e a última cópia no aparelho).
+
+| Jogo | Registro do estudo | Mostrado à criança |
 |---|---|---|
-| **OSD-895** — EDEN ISS (estufa espacial análoga, Antártida 2018) | biomassa: pepino 67 kg, alface 56 kg, rabanete 8 kg; luz; fotoperíodo; "spread harvest" do pepino | Elixir por colheita = `10 + kg × 0,35`; pepino com colheita contínua (3×) |
-| **OSD-883** — vegetais cultivados com solo lunar da Apollo 14 | alface coletada com 18 dias, rabanete com 14 dias | Dias de crescimento = `dias reais ÷ 7` (× nível de dificuldade) |
+| Alface | Lettuce Waldmanns Green (colheita única) | dias até colher + kg colhidos no canteiro escolhido |
+| Pepino | Cucumber Picowell (colheita repetida) | duração total do cultivo (não o 1º fruto) + kg colhidos |
+| Rabanete | Radish Raxe (colheita única) | dias até colher + kg colhidos no canteiro escolhido |
 
-Culturas: **Alface, Pepino e Rabanete** (a alface substitui a couve do GDD para ficar igual às telas).
-
-O pepino não aparece nesses estudos com duração de ciclo; usamos 42 dias como estimativa e isso aparece como "estimativa" no jogo.
+Produção estimada (kg) = Mean Edible Freshweight (kg/m²) × área do canteiro (1×1, 2×2 ou 3×3 m).
+Sem dado → "Ainda não temos esse dado" (nunca zero ou valor inventado).
+Dias de jogo, água e energia são balanceamento do jogo, separados da ciência.
+Detalhes, campos e conferência dos valores: [docs/professor-osd895.md](docs/professor-osd895.md).
 
 ### LRO / LOLA (Lunar Reconnaissance Orbiter) — exploração
 Tiles WMTS do **NASA Moon Trek** → via `/api/lro/{shade|dem}/{z}/{row}/{col}`

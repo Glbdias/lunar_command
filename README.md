@@ -64,7 +64,9 @@ Para trocar o vídeo, basta substituir esse arquivo.
 - Dormir: +Elixir (mais se houve colheita no dia), enche O₂, avança 1 dia, plantas crescem.
 - Melhorias (como na tela): Base 5 níveis (tanque 100→180), Plantação 4 níveis (+cúpulas, −água, colheitas maiores), Foguete 5 partes (minigames: canos, fios, jogo da memória, fios, canos). As últimas partes do foguete exigem tanque maior → obriga a melhorar a Base.
 - Dificuldade pela idade: 7–8 Iniciante, 9–10 Intermediário, 11–12 Avançado.
-- Acessibilidade: todo texto tem botão 🔊 (narração pt-BR pelo navegador) + narração automática do robô.
+- Acessibilidade: todo texto tem botão 🔊 (narração pelo navegador, no idioma escolhido) + narração automática do robô.
+- Idioma: português por padrão; o botão 🌐 English (história, idade e tela inicial) ou a Área dos pais troca para inglês.
+  A escolha fica salva no aparelho (`zuno-lang`) e vale também para jogos novos. Textos desenhados na arte das telas continuam em português.
 - Modo Supervisão (⚙️, protegido por conta de multiplicação): limite diário de tela, idade, narração, reiniciar.
 
 ## Arquivos

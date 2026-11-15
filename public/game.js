@@ -16,6 +16,27 @@ const IS_FILE = location.protocol === 'file:';
 const A = n => `assets/${n}`;
 const pos = ([x, y, w, h]) => `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
 
+/* ================= idioma (padrão: português; opção: inglês) ================= */
+// Fica fora do save: trocar de idioma ou começar um jogo novo não mexe na escolha.
+const LANG_KEY = 'zuno-lang';
+let LANG = 'pt';
+try { if (localStorage.getItem(LANG_KEY) === 'en') LANG = 'en'; } catch (e) { /* sem storage */ }
+const EN = () => LANG === 'en';
+const tr = (pt, en) => (EN() ? en : pt);
+const LOC = () => (EN() ? 'en-US' : 'pt-BR');
+document.documentElement.lang = LOC();
+function setLang(l) {
+  LANG = l === 'en' ? 'en' : 'pt';
+  try { localStorage.setItem(LANG_KEY, LANG); } catch (e) { /* sem storage */ }
+  document.documentElement.lang = LOC();
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  clearRobot(); // o balão do robô estava no idioma anterior
+  buildCrops(); render();
+}
+// botão que troca o idioma: mostra o idioma para o qual vai trocar
+const langBtn = (style = '') => `<button class="chip lang-btn" data-lang="${EN() ? 'pt' : 'en'}" style="${style}" aria-label="${tr('Idioma', 'Language')}">🌐 ${EN() ? 'Português' : 'English'}</button>`;
+document.addEventListener('click', e => { const b = e.target.closest('[data-lang]'); if (b) { e.stopPropagation(); setLang(b.dataset.lang); } }, true);
+
 /* ================= narração ================= */
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
@@ -23,21 +44,21 @@ function speak(text) {
   const clean = strip(text).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
   if (!clean) return;
   const u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'pt-BR';
-  const vs = speechSynthesis.getVoices();
-  const v = vs.find(v => /pt[-_]BR/i.test(v.lang)) || vs.find(v => /^pt/i.test(v.lang));
+  u.lang = LOC();
+  const vs = speechSynthesis.getVoices(), exact = EN() ? /en[-_]US/i : /pt[-_]BR/i, near = EN() ? /^en/i : /^pt/i;
+  const v = vs.find(v => exact.test(v.lang)) || vs.find(v => near.test(v.lang));
   if (v) u.voice = v;
   u.pitch = 1.1;
   speechSynthesis.speak(u);
 }
-const sayBtn = t => `<button class="say" data-say="${esc(strip(t))}" aria-label="Ouvir">🔊</button>`;
+const sayBtn = t => `<button class="say" data-say="${esc(strip(t))}" aria-label="${tr('Ouvir', 'Listen')}">🔊</button>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-say]'); if (b) { e.stopPropagation(); speak(b.dataset.say); } }, true);
 
 /* ================= dificuldade ================= */
 const DIFFS = [
-  { name: 'Iniciante', cost: .7, drainSec: 75, grow: .75, move: .75, time: 1.4, sleep: 1.2 },
-  { name: 'Intermediário', cost: 1, drainSec: 50, grow: 1, move: 1, time: 1, sleep: 1 },
-  { name: 'Avançado', cost: 1.3, drainSec: 32, grow: 1.2, move: 1.25, time: .8, sleep: .8 }
+  { get name() { return tr('Iniciante', 'Beginner'); }, cost: .7, drainSec: 75, grow: .75, move: .75, time: 1.4, sleep: 1.2 },
+  { get name() { return tr('Intermediário', 'Intermediate'); }, cost: 1, drainSec: 50, grow: 1, move: 1, time: 1, sleep: 1 },
+  { get name() { return tr('Avançado', 'Advanced'); }, cost: 1.3, drainSec: 32, grow: 1.2, move: 1.25, time: .8, sleep: .8 }
 ];
 const ageToDiff = a => a <= 8 ? 0 : a <= 10 ? 1 : 2;
 const D = () => DIFFS[S.diff];
@@ -72,11 +93,11 @@ const UPG = {
   farm: { max: 4, costs: [{ e: 20, s: 8 }, { e: 30, s: 16 }, { e: 40, s: 25 }] }
 };
 const ROCKET = [
-  { name: 'Tanque de combustível', game: 'pipes', n: 5, e: 30, o: 40, s: 12 },
-  { name: 'Fiação do painel', game: 'wires', n: 4, e: 40, o: 60, s: 20 },
-  { name: 'Equipamentos de bordo', game: 'memory', n: 6, e: 50, o: 80, s: 28 },
-  { name: 'Computador de bordo', game: 'wires', n: 5, e: 55, o: 110, s: 36 },
-  { name: 'Motor principal', game: 'pipes', n: 6, e: 60, o: 130, s: 45 }
+  { get name() { return tr('Tanque de combustível', 'Fuel tank'); }, game: 'pipes', n: 5, e: 30, o: 40, s: 12 },
+  { get name() { return tr('Fiação do painel', 'Panel wiring'); }, game: 'wires', n: 4, e: 40, o: 60, s: 20 },
+  { get name() { return tr('Equipamentos de bordo', 'On-board equipment'); }, game: 'memory', n: 6, e: 50, o: 80, s: 28 },
+  { get name() { return tr('Computador de bordo', 'Flight computer'); }, game: 'wires', n: 5, e: 55, o: 110, s: 36 },
+  { get name() { return tr('Motor principal', 'Main engine'); }, game: 'pipes', n: 6, e: 60, o: 130, s: 45 }
 ];
 const scaled = c => ({ e: Math.ceil((c.e || 0) * D().cost), o: Math.ceil((c.o || 0) * D().cost), s: Math.ceil((c.s || 0) * D().cost) });
 const canPay = c => S.elixir >= c.e && S.o2 >= c.o && S.scrap >= c.s;
@@ -124,24 +145,25 @@ const CROP_SAMPLE = {
 let CROPS = {};
 function buildCrops() {
   const rec = k => NASA.osdr.records.find(r => r.sampleName === CROP_SAMPLE[k]) || null;
+  // em inglês: noun = nome em minúsculas; plant = "The lettuce plant" (a gramática é montada em kidText)
   CROPS = {
-    alface: { name: 'Alface', sci: 'Lactuca sativa', variety: 'Waldmanns Green', art: 'A', noun: 'alface', ready: 'pronta', plant: 'O pé de alface',
+    alface: { name: tr('Alface', 'Lettuce'), sci: 'Lactuca sativa', variety: 'Waldmanns Green', art: 'A', noun: tr('alface', 'lettuce'), ready: 'pronta', plant: tr('O pé de alface', 'The lettuce plant'),
       img: 'plant_alface.png', icon: `<img src="${A('veg_alface.png')}" alt="">`, sci895: rec('alface') },
-    pepino: { name: 'Pepino', sci: 'Cucumis sativus', variety: 'Picowell', art: 'O', noun: 'pepino', ready: 'pronto', plant: 'O pé de pepino',
+    pepino: { name: tr('Pepino', 'Cucumber'), sci: 'Cucumis sativus', variety: 'Picowell', art: 'O', noun: tr('pepino', 'cucumber'), ready: 'pronto', plant: tr('O pé de pepino', 'The cucumber plant'),
       img: 'plant_pepino.png', icon: `<img src="${A('ic_pepino.png')}" alt="">`, sci895: rec('pepino') },
-    rabanete: { name: 'Rabanete', sci: 'Raphanus sativus', variety: 'Raxe', art: 'O', noun: 'rabanete', ready: 'pronto', plant: 'O pé de rabanete',
+    rabanete: { name: tr('Rabanete', 'Radish'), sci: 'Raphanus sativus', variety: 'Raxe', art: 'O', noun: tr('rabanete', 'radish'), ready: 'pronto', plant: tr('O pé de rabanete', 'The radish plant'),
       svg: true, icon: ART.rabanete(), sci895: rec('rabanete') }
   };
   Object.keys(CROPS).forEach(k => { CROPS[k].regrow = !!GAME[k].harvests; CROPS[k].harvests = GAME[k].harvests || 1; });
 }
 
 /* ---- textos para crianças a partir do OSD-895 (arredonda só na hora de mostrar) ---- */
-const NO_DATA = 'Ainda não temos esse dado.';
+const noData = () => tr('Ainda não temos esse dado.', 'We don’t have this data yet.');
 const AREAS = [1, 2, 3];                          // lado do canteiro em metros (1×1, 2×2, 3×3)
 const areaSide = () => (AREAS.includes(S.areaSide) ? S.areaSide : 1);
-const fmtKg = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('pt-BR');
-const fmtDays = v => Math.round(v).toLocaleString('pt-BR');
-const metros = n => `${n} ${n === 1 ? 'metro' : 'metros'}`;
+const fmtKg = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString(LOC());
+const fmtDays = v => Math.round(v).toLocaleString(LOC());
+const metros = n => `${n} ${n === 1 ? tr('metro', 'meter') : tr('metros', 'meters')}`;
 // produção estimada (kg) = produção média observada (kg/m²) × área (m²); valida área e unidade
 function estimateKg(rec, areaM2) {
   const m = rec && rec.meanEdibleFreshweight;
@@ -152,26 +174,32 @@ function estimateKg(rec, areaM2) {
 }
 // Frase principal: curta, sem "biomassa", "produtividade", "kg/m²" ou "ciclo avaliado"
 function kidText(k, short) {
-  const c = CROPS[k], rec = c && c.sci895;
-  if (!rec) return NO_DATA;
+  const c = CROPS[k], rec = c && c.sci895, ND = noData();
+  if (!rec) return ND;
   const side = areaSide(), est = estimateKg(rec, side * side);
   const age = rec.age && rec.age.value != null && rec.age.unit === 'day' ? rec.age.value : null;
   let t;
   if (rec.harvestType === 'spread') {
     // colheitas repetidas: a idade é a duração total do cultivo, não o tempo até a 1ª colheita
-    t = age != null ? `${c.plant} cresceu por <b>${fmtDays(age)} dias</b> e deu frutos várias vezes. O estudo não diz quando apareceu o primeiro ${c.noun}.`
-      : `${c.plant} deu frutos várias vezes. ${NO_DATA}`;
+    t = age != null
+      ? tr(`${c.plant} cresceu por <b>${fmtDays(age)} dias</b> e deu frutos várias vezes. O estudo não diz quando apareceu o primeiro ${c.noun}.`,
+        `${c.plant} grew for <b>${fmtDays(age)} days</b> and gave fruit many times. The study does not say when the first ${c.noun} appeared.`)
+      : tr(`${c.plant} deu frutos várias vezes. ${ND}`, `${c.plant} gave fruit many times. ${ND}`);
   } else {
-    t = age != null ? `${c.art} ${c.noun} ficou ${c.ready} para colher em cerca de <b>${fmtDays(age)} dias</b>.`
-      : `Quanto tempo ${c.art === 'A' ? 'a' : 'o'} ${c.noun} levou? ${NO_DATA}`;
+    t = age != null
+      ? tr(`${c.art} ${c.noun} ficou ${c.ready} para colher em cerca de <b>${fmtDays(age)} dias</b>.`,
+        `The ${c.noun} was ready to harvest in about <b>${fmtDays(age)} days</b>.`)
+      : tr(`Quanto tempo ${c.art === 'A' ? 'a' : 'o'} ${c.noun} levou? ${ND}`, `How long did the ${c.noun} take? ${ND}`);
   }
   if (short && rec.harvestType === 'spread') return t; // versão curta (balão da colheita)
-  if (!est) return t + ` Quanto foi colhido? ${NO_DATA}`;
+  if (!est) return t + tr(` Quanto foi colhido? ${ND}`, ` How much was harvested? ${ND}`);
   return side === 1
-    ? `${t} Em um espaço de 1 metro por 1 metro, foram colhidos cerca de <b>${fmtKg(est.kg)} kg</b>.`
-    : `${t} Num espaço de ${metros(side)} por ${metros(side)}, a colheita estimada é de cerca de <b>${fmtKg(est.kg)} kg</b>.`;
+    ? t + tr(` Em um espaço de 1 metro por 1 metro, foram colhidos cerca de <b>${fmtKg(est.kg)} kg</b>.`,
+      ` In a space of 1 meter by 1 meter, about <b>${fmtKg(est.kg)} kg</b> were harvested.`)
+    : t + tr(` Num espaço de ${metros(side)} por ${metros(side)}, a colheita estimada é de cerca de <b>${fmtKg(est.kg)} kg</b>.`,
+      ` In a space of ${metros(side)} by ${metros(side)}, the estimated harvest is about <b>${fmtKg(est.kg)} kg</b>.`);
 }
-const SOURCE_LINE = 'Fonte: NASA OSDR OSD-895 · estufa na Antártida (Terra)';
+const sourceLine = () => tr('Fonte: NASA OSDR OSD-895 · estufa na Antártida (Terra)', 'Source: NASA OSDR OSD-895 · greenhouse in Antarctica (Earth)');
 
 // ---- regras de jogo (só balanceamento; não são medições da planta) ----
 const gameDays = c => Math.max(1, Math.ceil(GAME[c].days * D().grow) - (S.farmLvl >= 4 ? 1 : 0));
@@ -181,8 +209,10 @@ const waterNeed = c => Math.max(1, GAME[c].water - (S.farmLvl - 1));
 
 /* ================= LRO / LOLA (topografia) ================= */
 const SITES = {
-  copernicus: { name: 'Cratera Copérnico', short: 'Copérnico', z: 5, row: 14, col: 28, base: [3, 1], lat: '5,6°N–11,3°N', lon: '16,9°O–22,5°O' },
-  framauro: { name: 'Fra Mauro (Apollo 14)', short: 'Fra Mauro', z: 5, row: 16, col: 28, base: [2, 3], lat: '0°–5,6°S', lon: '16,9°O–22,5°O' }
+  copernicus: { get name() { return tr('Cratera Copérnico', 'Copernicus Crater'); }, get short() { return tr('Copérnico', 'Copernicus'); }, z: 5, row: 14, col: 28, base: [3, 1],
+    get lat() { return tr('5,6°N–11,3°N', '5.6°N–11.3°N'); }, get lon() { return tr('16,9°O–22,5°O', '16.9°W–22.5°W'); } },
+  framauro: { name: 'Fra Mauro (Apollo 14)', short: 'Fra Mauro', z: 5, row: 16, col: 28, base: [2, 3],
+    get lat() { return tr('0°–5,6°S', '0°–5.6°S'); }, get lon() { return tr('16,9°O–22,5°O', '16.9°W–22.5°W'); } }
 };
 const GRID = 4, TERRAIN = {};
 const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -230,11 +260,20 @@ function fallbackZones(key) {
   for (let r = 0; r < GRID; r++) { zones.push([]); for (let c = 0; c < GRID; c++) { const z = { elev: (Math.sin(r * 1.7 + seed) + Math.cos(c * 1.3 + seed) + 2) / 4, slope: clamp(Math.abs(Math.sin(r * c + seed)), .1, 1) }; classify(z); zones[r].push(z); } }
   return zones;
 }
+const ZONE_TXT = {
+  crater: { icon: '🕳️', pt: ['Fundo de cratera', 'Região baixa e fria. Peças de meteoritos se acumulam aqui.'], en: ['Crater floor', 'A low, cold area. Meteorite pieces pile up here.'] },
+  steep: { icon: '⛰️', pt: ['Borda íngreme', 'Muito inclinado: gasta mais oxigênio, mas esconde muitas peças.'], en: ['Steep rim', 'Very steep: uses more oxygen, but hides lots of parts.'] },
+  plain: { icon: '🟫', pt: ['Planície', 'Terreno plano: caminhar é fácil e gasta pouco oxigênio.'], en: ['Plain', 'Flat ground: walking is easy and uses little oxygen.'] },
+  hills: { icon: '🏔️', pt: ['Colinas', 'Terreno ondulado com pedras e crateras pequenas.'], en: ['Hills', 'Bumpy ground with rocks and small craters.'] }
+};
+// o terreno fica em cache; nome e dica são lidos no idioma atual na hora de mostrar
 function classify(z) {
-  if (z.elev < .35) Object.assign(z, { type: 'Fundo de cratera', icon: '🕳️', tip: 'Região baixa e fria. Peças de meteoritos se acumulam aqui.' });
-  else if (z.slope > .7) Object.assign(z, { type: 'Borda íngreme', icon: '⛰️', tip: 'Muito inclinado: gasta mais oxigênio, mas esconde muitas peças.' });
-  else if (z.slope < .35) Object.assign(z, { type: 'Planície', icon: '🟫', tip: 'Terreno plano: caminhar é fácil e gasta pouco oxigênio.' });
-  else Object.assign(z, { type: 'Colinas', icon: '🏔️', tip: 'Terreno ondulado com pedras e crateras pequenas.' });
+  z.kind = z.elev < .35 ? 'crater' : z.slope > .7 ? 'steep' : z.slope < .35 ? 'plain' : 'hills';
+  z.icon = ZONE_TXT[z.kind].icon;
+  Object.defineProperties(z, {
+    type: { get: () => ZONE_TXT[z.kind][LANG][0], configurable: true },
+    tip: { get: () => ZONE_TXT[z.kind][LANG][1], configurable: true }
+  });
 }
 // 4 pinos do cenário = 4 zonas reais do LRO, da mais perto para a mais longe da base
 function pickPins(zones, base) {
@@ -255,12 +294,18 @@ const returnCost = p => Math.round(7 * dist(p, SITES[S.site].base) * D().move);
 const depKey = (r, c) => `${S.site}:${r},${c}`;
 const zoneYield = (z, r, c) => Math.max(1, Math.round((2 + 5 * z.slope + 3 * (1 - z.elev) + rnd(0, 2)) * Math.max(.2, 1 - .3 * (S.dep[depKey(r, c)] || 0))));
 const LUNAR_FACTS = [
-  'A sonda <b>LRO</b> mede o relevo da Lua com um laser chamado <b>LOLA</b>, que dispara 28 vezes por segundo!',
-  'A missão <b>Artemis I</b> passou pela Lua em <b>2022</b>, mas não pousou. O programa Artemis prepara missões tripuladas!',
-  'A cratera <b>Copérnico</b> tem cerca de <b>93 km</b> de largura e pode ser vista da Terra com binóculos.',
-  'A <b>Apollo 14</b> pousou em <b>Fra Mauro</b> em 1971 e trouxe solo lunar usado em experimentos com plantas.',
-  'Na Lua um dia dura cerca de <b>29 dias</b> da Terra, por isso as noites lunares são muito longas e frias.',
-  'A gravidade da Lua é <b>6 vezes menor</b>: na Lua você pularia muito mais alto!'
+  ['A sonda <b>LRO</b> mede o relevo da Lua com um laser chamado <b>LOLA</b>, que dispara 28 vezes por segundo!',
+    'The <b>LRO</b> probe measures the Moon’s surface with a laser called <b>LOLA</b>, which fires 28 times per second!'],
+  ['A missão <b>Artemis I</b> passou pela Lua em <b>2022</b>, mas não pousou. O programa Artemis prepara missões tripuladas!',
+    'The <b>Artemis I</b> mission flew around the Moon in <b>2022</b>, but did not land. The Artemis program is getting ready for crewed missions!'],
+  ['A cratera <b>Copérnico</b> tem cerca de <b>93 km</b> de largura e pode ser vista da Terra com binóculos.',
+    '<b>Copernicus</b> crater is about <b>93 km</b> wide and can be seen from Earth with binoculars.'],
+  ['A <b>Apollo 14</b> pousou em <b>Fra Mauro</b> em 1971 e trouxe solo lunar usado em experimentos com plantas.',
+    '<b>Apollo 14</b> landed at <b>Fra Mauro</b> in 1971 and brought back Moon soil used in plant experiments.'],
+  ['Na Lua um dia dura cerca de <b>29 dias</b> da Terra, por isso as noites lunares são muito longas e frias.',
+    'A day on the Moon lasts about <b>29 Earth days</b>, so lunar nights are very long and cold.'],
+  ['A gravidade da Lua é <b>6 vezes menor</b>: na Lua você pularia muito mais alto!',
+    'The Moon’s gravity is <b>6 times weaker</b>: on the Moon you could jump much higher!']
 ];
 
 /* ================= telas (coordenadas na arte 330×540) ================= */
@@ -298,7 +343,7 @@ function pumpRobot() {
   const { text, res } = robotQ.shift(), b = $('#bubble');
   b.className = 'bubble glass';
   b.style.bottom = SCREENS[curBg()]?.nav ? '92px' : '12px';
-  b.innerHTML = `<div class="rb"><img src="${A('robot.png')}" alt="Robô"></div><div class="speech">${text}<div class="row">${sayBtn(text)}<button class="pill-btn yellow small" data-ok>OK</button></div></div>`;
+  b.innerHTML = `<div class="rb"><img src="${A('robot.png')}" alt="${tr('Robô', 'Robot')}"></div><div class="speech">${text}<div class="row">${sayBtn(text)}<button class="pill-btn yellow small" data-ok>OK</button></div></div>`;
   if (S.voice) speak(text);
   $('[data-ok]', b).onclick = () => { b.className = 'bubble hidden'; robotBusy = false; res(); pumpRobot(); };
 }
@@ -307,7 +352,7 @@ const clearRobot = () => { robotQ.length = 0; robotBusy = false; $('#bubble').cl
 
 function modal(title, html, bind, opts = {}) {
   const m = $('#modal');
-  m.innerHTML = `<div class="card glass ${opts.cls || ''}"><div class="banner ${opts.orange ? 'orange' : ''}">${title}</div>${opts.noX ? '' : '<button class="xround" data-close style="right:-6px;top:-14px" aria-label="Fechar">✕</button>'}<div class="card-body">${html}</div></div>`;
+  m.innerHTML = `<div class="card glass ${opts.cls || ''}"><div class="banner ${opts.orange ? 'orange' : ''}">${title}</div>${opts.noX ? '' : `<button class="xround" data-close style="right:-6px;top:-14px" aria-label="${tr('Fechar', 'Close')}">✕</button>`}<div class="card-body">${html}</div></div>`;
   m.classList.remove('hidden');
   $$('[data-close]', m).forEach(x => x.onclick = closeModal);
   if (bind) bind(m);
@@ -331,7 +376,7 @@ function render() {
   hud();
   const nav = $('#nav');
   nav.innerHTML = cfg && cfg.nav ? ['farm', 'explore', 'upgrades', 'sleep'].map((t, i) =>
-    `<button data-nav="${t}" aria-label="${['Alimentar', 'Explorar', 'Melhorias', 'Dormir'][i]}" style="${pos([NAV_X[i][0], cfg.nav[0], NAV_X[i][1], cfg.nav[1]])}"></button>`).join('') : '';
+    `<button data-nav="${t}" aria-label="${tr(['Alimentar', 'Explorar', 'Melhorias', 'Dormir'], ['Feed', 'Explore', 'Upgrades', 'Sleep'])[i]}" style="${pos([NAV_X[i][0], cfg.nav[0], NAV_X[i][1], cfg.nav[1]])}"></button>`).join('') : '';
   setBackdrop(cfg);
   if (S.phase === 'intro') return renderIntro();
   if (S.phase === 'outro') return renderOutro();
@@ -344,7 +389,7 @@ function render() {
 $('#nav').addEventListener('click', e => {
   const b = e.target.closest('[data-nav]'); if (!b) return;
   const t = b.dataset.nav;
-  if (S.trip) { if (t !== 'explore') toast('🚙 Volte para a base primeiro!'); return go('explore'); }
+  if (S.trip) { if (t !== 'explore') toast(tr('🚙 Volte para a base primeiro!', '🚙 Go back to the base first!')); return go('explore'); }
   if (t === 'upgrades') return openUpgrades();
   go(current === t ? 'home' : t);
 });
@@ -359,8 +404,8 @@ function playVideo(src, onDone) {
   if (vidSrc === src && !box.classList.contains('hidden')) return; // já está tocando
   vidSrc = src;
   box.innerHTML = `<video id="vid" src="${A(src)}" playsinline preload="auto"></video>
-    <button class="pill-btn blue vid-snd hidden" id="vidSnd">🔊 ATIVAR SOM</button>
-    <button class="pill-btn yellow vid-skip" id="vidSkip">PULAR ⏭</button>
+    <button class="pill-btn blue vid-snd hidden" id="vidSnd">${tr('🔊 ATIVAR SOM', '🔊 TURN ON SOUND')}</button>
+    <button class="pill-btn yellow vid-skip" id="vidSkip">${tr('PULAR ⏭', 'SKIP ⏭')}</button>
     <div class="vid-bar"><i id="vidProg"></i></div>`;
   box.classList.remove('hidden'); positionVid();
   const v = $('#vid'), snd = $('#vidSnd');
@@ -396,11 +441,11 @@ function newGame() {
 
 /* ================= história / idade ================= */
 const STORY = [
-  { t: 'Você é um astronauta e vive em um posto avançado na Lua. 🌕', img: [['moon_scene.png', 'left:-15px;top:-10px;width:330px;height:220px;object-fit:cover']] },
-  { t: 'Certo dia, uma nave espacial alienígena caiu perto da sua base! 💥', img: [['moon_scene.png', 'left:-15px;top:-10px;width:330px;height:220px;object-fit:cover;filter:brightness(.55)'], ['rocket.png', 'left:95px;top:14px;width:120px;border-radius:14px;box-shadow:0 0 0 3px #7fe3ff,0 0 18px #ff8a3d']] },
-  { t: 'Nos destroços, você encontrou Zuno: um pequeno alienígena ferido e sem energia.', img: [['zuno_sleep.png', 'left:0;top:-10px;width:300px']] },
-  { t: 'O Robô da base escaneou Zuno: a energia dele vem do <b>ELIXIR</b>, feito a partir de plantas cultivadas!', img: [['robot.png', 'left:12px;top:30px;width:140px;border-radius:16px'], ['plant_alface.png', 'left:170px;top:70px;width:120px']] },
-  { t: 'Sua missão: cuidar de Zuno, cuidar dos recursos da base e consertar o foguete para ele voltar para a família! 🚀', img: [['zuno_home.png', 'left:10px;top:-20px;width:150px'], ['rocket.png', 'left:170px;top:20px;width:120px']] }
+  { get t() { return tr('Você é um astronauta e vive em um posto avançado na Lua. 🌕', 'You are an astronaut living at an outpost on the Moon. 🌕'); }, img: [['moon_scene.png', 'left:-15px;top:-10px;width:330px;height:220px;object-fit:cover']] },
+  { get t() { return tr('Certo dia, uma nave espacial alienígena caiu perto da sua base! 💥', 'One day, an alien spaceship crashed near your base! 💥'); }, img: [['moon_scene.png', 'left:-15px;top:-10px;width:330px;height:220px;object-fit:cover;filter:brightness(.55)'], ['rocket.png', 'left:95px;top:14px;width:120px;border-radius:14px;box-shadow:0 0 0 3px #7fe3ff,0 0 18px #ff8a3d']] },
+  { get t() { return tr('Nos destroços, você encontrou Zuno: um pequeno alienígena ferido e sem energia.', 'In the wreckage, you found Zuno: a little alien, hurt and out of energy.'); }, img: [['zuno_sleep.png', 'left:0;top:-10px;width:300px']] },
+  { get t() { return tr('O Robô da base escaneou Zuno: a energia dele vem do <b>ELIXIR</b>, feito a partir de plantas cultivadas!', 'The base Robot scanned Zuno: his energy comes from <b>ELIXIR</b>, made from the plants you grow!'); }, img: [['robot.png', 'left:12px;top:30px;width:140px;border-radius:16px'], ['plant_alface.png', 'left:170px;top:70px;width:120px']] },
+  { get t() { return tr('Sua missão: cuidar de Zuno, cuidar dos recursos da base e consertar o foguete para ele voltar para a família! 🚀', 'Your mission: take care of Zuno and the base, and fix the rocket so he can go back to his family! 🚀'); }, img: [['zuno_home.png', 'left:10px;top:-20px;width:150px'], ['rocket.png', 'left:170px;top:20px;width:120px']] }
 ];
 let storyI = 0;
 function renderStory() {
@@ -410,25 +455,27 @@ function renderStory() {
     <div class="scene">${s.img.map(([src, st]) => `<img src="${A(src)}" style="${st}" alt="">`).join('')}</div>
     <div class="story-text glass" style="padding:8px 10px"><p style="flex:1">${s.t}</p>${sayBtn(s.t)}</div>
     <div class="dots">${STORY.map((_, i) => `<i class="${i === storyI ? 'on' : ''}"></i>`).join('')}</div>
-    <div class="row2"><button class="pill-btn blue" id="skip">PULAR</button><button class="pill-btn green" id="next">${storyI < STORY.length - 1 ? 'PRÓXIMO ▶' : 'COMEÇAR!'}</button></div>
+    <div class="row2"><button class="pill-btn blue" id="skip">${tr('PULAR', 'SKIP')}</button><button class="pill-btn green" id="next">${storyI < STORY.length - 1 ? tr('PRÓXIMO ▶', 'NEXT ▶') : tr('COMEÇAR!', 'START!')}</button></div>
+    ${langBtn('right:8px;top:8px')}
   </div>`);
   if (S.voice && storyI > 0) speak(s.t);
   $('#next').onclick = () => { if (storyI < STORY.length - 1) { storyI++; renderStory(); } else { S.phase = 'age'; save(); render(); } };
   $('#skip').onclick = () => { S.phase = 'age'; save(); render(); };
 }
 function renderAge() {
-  const t = 'Quantos anos você tem? Assim eu deixo a missão do seu tamanho!';
+  const t = tr('Quantos anos você tem? Assim eu deixo a missão do seu tamanho!', 'How old are you? That way I can make the mission just right for you!');
   layer(`<div class="story" style="justify-content:center;gap:14px">
     <div style="width:130px;height:122px;border-radius:20px;overflow:hidden;border:3px solid #7fe3ff"><img src="${A('robot.png')}" style="width:100%;height:100%;object-fit:cover" alt=""></div>
     <div class="story-text glass" style="padding:8px 10px"><p style="flex:1">${t}</p>${sayBtn(t)}</div>
     <div class="ages">${[7, 8, 9, 10, 11, 12].map(a => `<button class="pill-btn ${['yellow', 'yellow', 'blue', 'blue', 'green', 'green'][a - 7]}" data-age="${a}">${a}</button>`).join('')}</div>
-    <p style="font-size:11px;text-align:center;opacity:.85">Adultos: o Modo Supervisão (limite de tempo) fica na engrenagem ⚙️ da tela inicial.</p>
+    <p style="font-size:11px;text-align:center;opacity:.85">${tr('Adultos: o Modo Supervisão (limite de tempo) fica na engrenagem ⚙️ da tela inicial.', 'Grown-ups: Parent Mode (time limit) is under the gear ⚙️ on the home screen.')}</p>
+    ${langBtn('right:8px;top:8px')}
   </div>`);
   $$('[data-age]').forEach(b => b.onclick = () => {
     S.age = +b.dataset.age; S.diff = ageToDiff(S.age); S.phase = 'play'; S.o2 = o2Max(); save();
     current = 'home'; render();
-    robot(`Nível <b>${D().name}</b> ativado! Eu sou o Robô da base. Toque em mim quando precisar de uma dica.`);
-    robot('A barra amarela é a <b>ENERGIA</b> do Zuno (o Elixir). Se ela acabar, ele desmaia! Vamos cuidar bem dele.');
+    robot(tr(`Nível <b>${D().name}</b> ativado! Eu sou o Robô da base. Toque em mim quando precisar de uma dica.`, `<b>${D().name}</b> level on! I’m the base Robot. Tap me whenever you need a hint.`));
+    robot(tr('A barra amarela é a <b>ENERGIA</b> do Zuno (o Elixir). Se ela acabar, ele desmaia! Vamos cuidar bem dele.', 'The yellow bar is Zuno’s <b>ENERGY</b> (Elixir). If it runs out, he faints! Let’s take good care of him.'));
   });
 }
 
@@ -438,43 +485,47 @@ function renderHome() {
   const mood = zunoMood();
   layer(`${mood === 'faint' ? '<div class="faint-veil"></div>' : ''}
     <div class="zuno-hit" id="zuno"></div>
-    ${mood !== 'happy' ? `<div class="mood"><div class="speech">${mood === 'faint' ? '😵 Sem energia...' : '😢 Estou com fome!'}</div></div>` : ''}
-    <div class="chip" style="left:8px;top:72px;font-size:11px">📅 Dia ${S.day}</div>
+    ${mood !== 'happy' ? `<div class="mood"><div class="speech">${mood === 'faint' ? tr('😵 Sem energia...', '😵 No energy...') : tr('😢 Estou com fome!', '😢 I’m hungry!')}</div></div>` : ''}
+    <div class="chip" style="left:8px;top:72px;font-size:11px">📅 ${tr('Dia', 'Day')} ${S.day}</div>
     <button class="chip" id="nasaBtn" style="right:36px;top:72px;font-size:11px">🛰️ NASA</button>
-    <button class="chip" id="gearBtn" style="right:8px;top:72px;padding:2px 4px;font-size:11px" aria-label="Pais">⚙️</button>
+    <button class="chip" id="gearBtn" style="right:8px;top:72px;padding:2px 4px;font-size:11px" aria-label="${tr('Pais', 'Parents')}">⚙️</button>
     <button class="chip" id="rocketBtn" style="left:8px;top:94px;font-size:11px">🚀 ${S.rocket}/5</button>
-    <button class="robot-hint" id="robotBtn"><img src="${A('robot.png')}" alt="Robô"><i>?</i></button>`);
+    ${langBtn('right:8px;top:94px;font-size:11px')}
+    <button class="robot-hint" id="robotBtn"><img src="${A('robot.png')}" alt="${tr('Robô', 'Robot')}"><i>?</i></button>`);
   $('#zuno').onclick = petZuno;
   $('#robotBtn').onclick = () => robot(hint());
   $('#nasaBtn').onclick = openNasa;
   $('#gearBtn').onclick = () => parentalGate(openSettings);
-  $('#rocketBtn').onclick = () => robot(S.rocket < 5 ? `Foguete: <b>${S.rocket} de 5</b> partes consertadas. Próxima: <b>${ROCKET[S.rocket].name}</b>. Use MELHORIAS!` : 'O foguete está pronto!');
-  if (mood === 'faint') tip('faint' + S.day, 'Zuno desmaiou sem energia! Colha plantas em <b>ALIMENTAR</b> ou coloque-o para <b>DORMIR</b>.');
-  else if (mood === 'sad') tip('sad' + S.day, 'Zuno está ficando fraco... Vá em <b>ALIMENTAR</b> e colha uma planta para ele!');
+  $('#rocketBtn').onclick = () => robot(S.rocket < 5
+    ? tr(`Foguete: <b>${S.rocket} de 5</b> partes consertadas. Próxima: <b>${ROCKET[S.rocket].name}</b>. Use MELHORIAS!`, `Rocket: <b>${S.rocket} of 5</b> parts fixed. Next: <b>${ROCKET[S.rocket].name}</b>. Use UPGRADES!`)
+    : tr('O foguete está pronto!', 'The rocket is ready!'));
+  if (mood === 'faint') tip('faint' + S.day, tr('Zuno desmaiou sem energia! Colha plantas em <b>ALIMENTAR</b> ou coloque-o para <b>DORMIR</b>.', 'Zuno fainted with no energy! Harvest plants in <b>FEED</b> or put him to <b>SLEEP</b>.'));
+  else if (mood === 'sad') tip('sad' + S.day, tr('Zuno está ficando fraco... Vá em <b>ALIMENTAR</b> e colha uma planta para ele!', 'Zuno is getting weak... Go to <b>FEED</b> and harvest a plant for him!'));
 }
-const PET = ['Zuno adora carinho! 💚', 'Zuno: "Blip blop!" (obrigado!)', 'Zuno sente saudade da família...', 'Zuno está curioso sobre a Terra 🌍'];
+const PET = [['Zuno adora carinho! 💚', 'Zuno loves cuddles! 💚'], ['Zuno: "Blip blop!" (obrigado!)', 'Zuno: "Blip blop!" (thank you!)'],
+  ['Zuno sente saudade da família...', 'Zuno misses his family...'], ['Zuno está curioso sobre a Terra 🌍', 'Zuno is curious about Earth 🌍']];
 function petZuno(e) {
-  if (zunoMood() === 'faint') return toast('😵 Zuno precisa de Elixir!');
+  if (zunoMood() === 'faint') return toast(tr('😵 Zuno precisa de Elixir!', '😵 Zuno needs Elixir!'));
   const h = document.createElement('div'); h.className = 'heart'; h.textContent = ['💚', '💙', '✨', '⭐'][rnd(0, 3)];
   const r = $('#screen').getBoundingClientRect(), k = 330 / r.width;
   h.style.left = ((e.clientX - r.left) * k - 12) + 'px'; h.style.top = ((e.clientY - r.top) * k - 20) + 'px';
   $('#layer').appendChild(h); setTimeout(() => h.remove(), 1200);
-  toast(PET[rnd(0, PET.length - 1)]);
+  toast(PET[rnd(0, PET.length - 1)][EN() ? 1 : 0]);
 }
 function hint() {
   const open = S.plots.slice(0, slotsOpen());
-  if (open.some(p => p.crop && p.left <= 0)) return 'Tem planta pronta! Vá em <b>ALIMENTAR</b> e faça a colheita. 🌱';
-  if (S.elixir < 20) return 'A energia está muito baixa. Vá <b>DORMIR</b> para recuperar, e as plantas crescem durante a noite.';
-  if (open.some(p => !p.crop)) return S.water >= 1 ? 'Há cúpula vazia na plantação! Plante algo para produzir Elixir.' : 'Acabou a água! Extraia gelo lunar na tela da plantação. 💧';
+  if (open.some(p => p.crop && p.left <= 0)) return tr('Tem planta pronta! Vá em <b>ALIMENTAR</b> e faça a colheita. 🌱', 'A plant is ready! Go to <b>FEED</b> and harvest it. 🌱');
+  if (S.elixir < 20) return tr('A energia está muito baixa. Vá <b>DORMIR</b> para recuperar, e as plantas crescem durante a noite.', 'Energy is very low. Go to <b>SLEEP</b> to recover; plants grow during the night.');
+  if (open.some(p => !p.crop)) return S.water >= 1 ? tr('Há cúpula vazia na plantação! Plante algo para produzir Elixir.', 'There’s an empty dome on the farm! Plant something to make Elixir.') : tr('Acabou a água! Extraia gelo lunar na tela da plantação. 💧', 'Out of water! Dig lunar ice on the farm screen. 💧');
   if (S.rocket < 5) {
     const c = scaled(ROCKET[S.rocket]);
-    if (c.o > o2Max()) return `A próxima peça do foguete precisa de <b>${c.o}</b> de oxigênio, mas o tanque só guarda <b>${o2Max()}</b>. Melhore a <b>Base</b>!`;
-    if (canPay(c)) return 'Você já tem recursos para consertar uma parte do foguete! Abra <b>MELHORIAS</b>. 🚀';
-    if (S.scrap < c.s) return `Precisamos de mais <b>${c.s - S.scrap}</b> sucatas. Vá <b>EXPLORAR</b> a Lua!`;
-    if (S.o2 < c.o) return 'Falta oxigênio. Volte de uma expedição ou durma para reabastecer o tanque.';
-    return 'Falta energia para a melhoria. Colha plantas para o Zuno!';
+    if (c.o > o2Max()) return tr(`A próxima peça do foguete precisa de <b>${c.o}</b> de oxigênio, mas o tanque só guarda <b>${o2Max()}</b>. Melhore a <b>Base</b>!`, `The next rocket part needs <b>${c.o}</b> oxygen, but the tank only holds <b>${o2Max()}</b>. Upgrade the <b>Base</b>!`);
+    if (canPay(c)) return tr('Você já tem recursos para consertar uma parte do foguete! Abra <b>MELHORIAS</b>. 🚀', 'You have enough to fix a rocket part! Open <b>UPGRADES</b>. 🚀');
+    if (S.scrap < c.s) return tr(`Precisamos de mais <b>${c.s - S.scrap}</b> sucatas. Vá <b>EXPLORAR</b> a Lua!`, `We need <b>${c.s - S.scrap}</b> more scrap. Go <b>EXPLORE</b> the Moon!`);
+    if (S.o2 < c.o) return tr('Falta oxigênio. Volte de uma expedição ou durma para reabastecer o tanque.', 'Not enough oxygen. Come back from an expedition or sleep to refill the tank.');
+    return tr('Falta energia para a melhoria. Colha plantas para o Zuno!', 'Not enough energy for the upgrade. Harvest plants for Zuno!');
   }
-  return 'Tudo certo por aqui! Continue cuidando do Zuno.';
+  return tr('Tudo certo por aqui! Continue cuidando do Zuno.', 'All good here! Keep taking care of Zuno.');
 }
 
 /* ================= plantação ================= */
@@ -494,53 +545,54 @@ function renderFarm() {
     const p = S.plots[i];
     if (i >= slotsOpen()) return ''; // bloqueada: já está desenhada no fundo
     const ready = p.crop && p.left <= 0;
-    const name = p.crop ? `${CROPS[p.crop].icon}${CROPS[p.crop].name.toUpperCase()}` : 'VAZIO';
+    const name = p.crop ? `${CROPS[p.crop].icon}${CROPS[p.crop].name.toUpperCase()}` : tr('VAZIO', 'EMPTY');
     let st;
-    if (!p.crop) st = `<button class="pill-btn green plantar" data-plant="${i}">+ PLANTAR</button>`;
-    else if (ready) st = `<div class="ok-pill">✔ PRONTO!</div><button class="img-btn colher" data-harvest="${i}" aria-label="Colher" style="background-image:url(${A('btn_colher.png')})"></button>`;
+    if (!p.crop) st = `<button class="pill-btn green plantar" data-plant="${i}">${tr('+ PLANTAR', '+ PLANT')}</button>`;
+    else if (ready) st = `<div class="ok-pill">${tr('✔ PRONTO!', '✔ READY!')}</div><button class="img-btn colher" data-harvest="${i}" aria-label="${tr('Colher', 'Harvest')}" style="background-image:url(${A('btn_colher.png')})"></button>`;
     // barra = contagem de dias DE JOGO (não é medição do crescimento real da planta)
-    else st = `<div class="days" title="Dias de jogo (não é medição do estudo)">🎮 ${p.left} DIA${p.left > 1 ? 'S' : ''}</div><div class="prog" title="Estimativa do jogo"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
+    else st = `<div class="days" title="${tr('Dias de jogo (não é medição do estudo)', 'Game days (not a study measurement)')}">🎮 ${p.left} ${p.left > 1 ? tr('DIAS', 'DAYS') : tr('DIA', 'DAY')}</div><div class="prog" title="${tr('Estimativa do jogo', 'Game estimate')}"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
     return `<div class="pod" style="${pos(r)}"><img class="podimg" src="${A('pod.png')}" alt="">
       <div class="pod-in ${ready ? 'ready' : ''}" data-pod="${i}">${p.crop ? plantHTML(p.crop, stageScale(p)) : ''}</div>
       <div class="plabel">${name}</div><div class="pstatus">${st}</div></div>`;
   }).join('');
   layer(html + `
-    <div class="chip" style="left:8px;top:70px">💧 Água: ${S.water}</div>
-    <button class="chip" id="ice" style="right:8px;top:70px">⛏️ Gelo +3💧</button>
+    <div class="chip" style="left:8px;top:70px">💧 ${tr('Água', 'Water')}: ${S.water}</div>
+    <button class="chip" id="ice" style="right:8px;top:70px">⛏️ ${tr('Gelo', 'Ice')} +3💧</button>
     <button class="chip" id="cropInfo" style="left:8px;top:94px">🧪 NASA</button>`);
   $$('[data-plant]').forEach(b => b.onclick = () => choosePlant(+b.dataset.plant));
   $$('[data-harvest]').forEach(b => b.onclick = () => harvest(+b.dataset.harvest));
-  $$('.pod-in').forEach(d => d.onclick = () => { const i = +d.dataset.pod, p = S.plots[i]; if (!p.crop) choosePlant(i); else if (p.left <= 0) harvest(i); else toast(`🌱 Faltam ${p.left} dia(s)`); });
+  $$('.pod-in').forEach(d => d.onclick = () => { const i = +d.dataset.pod, p = S.plots[i]; if (!p.crop) choosePlant(i); else if (p.left <= 0) harvest(i); else toast(tr(`🌱 Faltam ${p.left} dia(s)`, `🌱 ${p.left} day(s) to go`)); });
   $('#ice').onclick = collectWater;
   $('#cropInfo').onclick = openNasa;
-  tip('farm', 'Esta é a plantação! As plantas são estudadas de verdade pela NASA. Plantar usa <b>água</b> e um pouco de <b>energia</b>; colher dá <b>Elixir</b> para o Zuno.');
+  tip('farm', tr('Esta é a plantação! As plantas são estudadas de verdade pela NASA. Plantar usa <b>água</b> e um pouco de <b>energia</b>; colher dá <b>Elixir</b> para o Zuno.',
+    'This is the farm! NASA really studies these plants. Planting uses <b>water</b> and a little <b>energy</b>; harvesting gives <b>Elixir</b> to Zuno.'));
 }
 function collectWater() {
-  if (S.elixir < 4) return toast('⚡ Energia insuficiente!');
-  S.elixir -= 4; S.water += 3; save(); render(); toast('💧 +3 de água (gelo lunar derretido)');
-  tip('water', 'Sabia? Em 2009, a NASA descobriu <b>gelo de água</b> em crateras escuras do polo sul da Lua com a missão LCROSS!');
+  if (S.elixir < 4) return toast(tr('⚡ Energia insuficiente!', '⚡ Not enough energy!'));
+  S.elixir -= 4; S.water += 3; save(); render(); toast(tr('💧 +3 de água (gelo lunar derretido)', '💧 +3 water (melted lunar ice)'));
+  tip('water', tr('Sabia? Em 2009, a NASA descobriu <b>gelo de água</b> em crateras escuras do polo sul da Lua com a missão LCROSS!', 'Did you know? In 2009, NASA found <b>water ice</b> in dark craters at the Moon’s south pole with the LCROSS mission!'));
 }
 function choosePlant(i) {
   const cards = Object.keys(CROPS).map(k => {
     const c = CROPS[k], w = waterNeed(k), ok = S.water >= w && S.elixir >= 3;
     const sci = kidText(k);
     return `<div class="cropcard"><div class="pic">${c.svg ? ART.rabanete() : `<img src="${A(c.img)}" alt="">`}</div>
-      <div class="info"><h3>${c.name} ${sayBtn(`${c.name}. Na estufa da Antártida: ${sci}`)}</h3>
+      <div class="info"><h3>${c.name} ${sayBtn(`${c.name}. ${tr('Na estufa da Antártida', 'In the Antarctic greenhouse')}: ${sci}`)}</h3>
         <div class="sci-txt">🔬 ${sci}</div>
-        <div class="crop-foot"><span class="game-txt">🎮 No jogo: <b>${gameDays(k)} dia(s)</b> · 💧${w} · +${elixirValue(k)}⚡</span>
-        <button class="pill-btn green small" data-pick="${k}" ${ok ? '' : 'disabled'}>PLANTAR</button></div></div></div>`;
+        <div class="crop-foot"><span class="game-txt">🎮 ${tr('No jogo', 'In the game')}: <b>${gameDays(k)} ${tr('dia(s)', 'day(s)')}</b> · 💧${w} · +${elixirValue(k)}⚡</span>
+        <button class="pill-btn green small" data-pick="${k}" ${ok ? '' : 'disabled'}>${tr('PLANTAR', 'PLANT')}</button></div></div></div>`;
   }).join('');
   const sizes = AREAS.map(n => `<button class="area-btn ${areaSide() === n ? 'on' : ''}" data-area="${n}">${n}×${n} m</button>`).join('');
-  modal('O QUE PLANTAR?', `<p style="font-size:12px;text-align:center">Plantar custa 3⚡ + água. Você tem 💧${S.water}.</p>
-    <div class="area-row"><span>Tamanho do canteiro:</span>${sizes}</div>${cards}
-    <p class="src-line">${SOURCE_LINE}. Os dias de jogo são do jogo, não do estudo.</p>`, m => {
+  modal(tr('O QUE PLANTAR?', 'WHAT TO PLANT?'), `<p style="font-size:12px;text-align:center">${tr(`Plantar custa 3⚡ + água. Você tem 💧${S.water}.`, `Planting costs 3⚡ + water. You have 💧${S.water}.`)}</p>
+    <div class="area-row"><span>${tr('Tamanho do canteiro:', 'Plot size:')}</span>${sizes}</div>${cards}
+    <p class="src-line">${sourceLine()}. ${tr('Os dias de jogo são do jogo, não do estudo.', 'Game days come from the game, not from the study.')}</p>`, m => {
     $$('[data-area]', m).forEach(b => b.onclick = () => { S.areaSide = +b.dataset.area; save(); choosePlant(i); });
     $$('[data-pick]', m).forEach(b => b.onclick = () => {
       const k = b.dataset.pick, p = S.plots[i];
       S.water -= waterNeed(k); S.elixir -= 3;
       Object.assign(p, { crop: k, left: gameDays(k), total: gameDays(k), harvests: 0 });
-      save(); closeModal(); render(); toast(`🌱 ${CROPS[k].name} plantado!`);
-      tip('plant', 'As plantas crescem enquanto o Zuno dorme. Cada noite de sono = <b>1 dia</b> na Lua.');
+      save(); closeModal(); render(); toast(tr(`🌱 ${CROPS[k].name} plantado!`, `🌱 ${CROPS[k].name} planted!`));
+      tip('plant', tr('As plantas crescem enquanto o Zuno dorme. Cada noite de sono = <b>1 dia</b> na Lua.', 'Plants grow while Zuno sleeps. Each night of sleep = <b>1 day</b> on the Moon.'));
     });
   });
 }
@@ -548,19 +600,19 @@ function harvest(i) {
   const p = S.plots[i], k = p.crop, c = CROPS[k], gain = elixirValue(k);
   S.elixir = Math.min(100, S.elixir + gain); S.fedToday = true; S.stats.harvested++; p.harvests++;
   let extra = '';
-  if (c.regrow && p.harvests < c.harvests) { p.left = regrowDays(); p.total = p.left; extra = ` O pé de pepino continua dando frutos: mais em ${p.left} dia(s)!`; }
+  if (c.regrow && p.harvests < c.harvests) { p.left = regrowDays(); p.total = p.left; extra = tr(` O pé de pepino continua dando frutos: mais em ${p.left} dia(s)!`, ` The cucumber plant keeps giving fruit: more in ${p.left} day(s)!`); }
   else Object.assign(p, { crop: null, left: 0, total: 0, harvests: 0 });
   save(); render();
-  toast(`⚡ +${gain} de energia para o Zuno!`);
+  toast(tr(`⚡ +${gain} de energia para o Zuno!`, `⚡ +${gain} energy for Zuno!`));
   const txt = kidText(k, true);
   const small = strip(txt).length > 115;
   if (extra) setTimeout(() => robot(extra.trim()), 300);
   // popup original "COLHEITA REALIZADA!" com o texto e o vegetal trocados
   const vegOverlay = k === 'alface' ? '' : `<div class="abs" style="${pos([196, 136, 82, 62])};background:radial-gradient(circle,#2f74e0 40%,#2563d8 70%,rgba(37,99,216,0));display:grid;place-items:center">${c.svg ? `<div style="width:54px">${ART.rabanete()}</div>` : `<img src="${A(c.img)}" style="width:80px" alt="">`}</div>`;
-  modalRaw(`<div class="popimg" style="${pos([6, 253, 300, 207])}"><img src="${A('pop_harvest.webp')}" alt="Colheita realizada">
-      <div class="abs speech" style="${pos([125, 62, 148, 92])};border:0;background:#eef4ff;font-size:${small ? 10 : 11.5}px;line-height:1.3;padding:3px 6px;border-radius:12px;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;justify-content:safe center"><span>${txt}</span><span class="src-mini">Fonte: NASA OSDR OSD-895 · Antártida</span></div>
+  modalRaw(`<div class="popimg" style="${pos([6, 253, 300, 207])}"><img src="${A('pop_harvest.webp')}" alt="${tr('Colheita realizada', 'Harvest done')}">
+      <div class="abs speech" style="${pos([125, 62, 148, 92])};border:0;background:#eef4ff;font-size:${small ? 10 : 11.5}px;line-height:1.3;padding:3px 6px;border-radius:12px;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;justify-content:safe center"><span>${txt}</span><span class="src-mini">${tr('Fonte: NASA OSDR OSD-895 · Antártida', 'Source: NASA OSDR OSD-895 · Antarctica')}</span></div>
       ${vegOverlay}
-      <button class="hot" data-close style="${pos([262, 6, 36, 36])}" aria-label="Fechar"></button>
+      <button class="hot" data-close style="${pos([262, 6, 36, 36])}" aria-label="${tr('Fechar', 'Close')}"></button>
       <div class="abs" style="left:8px;top:170px">${sayBtn(txt)}</div></div>`, m => m.onclick = e => { if (e.target === m) closeModal(); });
   if (S.voice) speak(txt);
 }
@@ -571,11 +623,12 @@ const PANEL = [14, 206, 302, 248];
 let selPin = null;
 async function renderExplore() {
   const site = SITES[S.site];
-  layer(`<div id="pins"></div><div class="xpanel glass" id="xp" style="${pos(PANEL)}"><div class="banner">${S.trip ? 'EXPEDIÇÃO' : 'ESCOLHA UM LOCAL'}</div><p style="text-align:center;margin-top:30px">🛰️ Baixando relevo da LRO...</p></div>`);
+  layer(`<div id="pins"></div><div class="xpanel glass" id="xp" style="${pos(PANEL)}"><div class="banner">${S.trip ? tr('EXPEDIÇÃO', 'EXPEDITION') : tr('ESCOLHA UM LOCAL', 'PICK A PLACE')}</div><p style="text-align:center;margin-top:30px">${tr('🛰️ Baixando relevo da LRO...', '🛰️ Downloading LRO terrain...')}</p></div>`);
   const t = await loadTerrain(S.site);
   if (current !== 'explore' || !$('#xp')) return;
   drawPins(t); drawPanel(t);
-  tip('explore', 'Cada pino é um lugar <b>de verdade</b> da Lua: o relevo vem do laser LOLA da sonda LRO! Terrenos inclinados gastam mais oxigênio, mas têm mais sucata. Guarde oxigênio para voltar!');
+  tip('explore', tr('Cada pino é um lugar <b>de verdade</b> da Lua: o relevo vem do laser LOLA da sonda LRO! Terrenos inclinados gastam mais oxigênio, mas têm mais sucata. Guarde oxigênio para voltar!',
+    'Each pin is a <b>real</b> place on the Moon: the terrain comes from the LRO probe’s LOLA laser! Steep ground uses more oxygen but has more scrap. Save oxygen for the trip back!'));
 }
 function drawPins(t) {
   const posNow = S.trip ? S.trip.pos : SITES[S.site].base;
@@ -583,33 +636,34 @@ function drawPins(t) {
   $('#pins').innerHTML = t.pins.map(([r, c], i) => {
     const [x, y] = PIN_POS[i], times = S.dep[depKey(r, c)] || 0;
     if (r === posNow[0] && c === posNow[1]) astro = `left:${x + 16}px;top:${y - 8}px`;
-    return `<button class="pinb ${selPin === i ? 'sel' : ''} ${times >= 3 ? 'dim' : ''}" data-pin="${i}" style="left:${x}px;top:${y}px"><img src="${A('pin.png')}" alt="Local ${i + 1}"><span class="n">${i + 1}</span>${times ? '<span class="ck">✔</span>' : ''}</button>`;
+    return `<button class="pinb ${selPin === i ? 'sel' : ''} ${times >= 3 ? 'dim' : ''}" data-pin="${i}" style="left:${x}px;top:${y}px"><img src="${A('pin.png')}" alt="${tr('Local', 'Place')} ${i + 1}"><span class="n">${i + 1}</span>${times ? '<span class="ck">✔</span>' : ''}</button>`;
   }).join('') + `<div class="astro" style="${astro}">🧑‍🚀</div>`;
   $$('[data-pin]').forEach(b => b.onclick = () => { selPin = +b.dataset.pin; drawPins(t); drawPanel(t); });
 }
 function drawPanel(t) {
   const site = SITES[S.site], posNow = S.trip ? S.trip.pos : site.base;
   let info;
-  if (selPin === null) info = `<div class="zinfo"><h4>Toque num pino ${sayBtn('Toque num pino do cenário ou numa região numerada do mapa para ver o terreno e o custo.')}</h4>
-      <p style="font-size:11px;line-height:1.3">O mapinha é a Lua de verdade (${site.name}), medida pelo laser <b style="color:#ffe14d">LOLA</b> da sonda <b style="color:#ffe14d">LRO</b> da NASA.</p></div>`;
+  if (selPin === null) info = `<div class="zinfo"><h4>${tr('Toque num pino', 'Tap a pin')} ${sayBtn(tr('Toque num pino do cenário ou numa região numerada do mapa para ver o terreno e o custo.', 'Tap a pin in the scene or a numbered area on the map to see the terrain and the cost.'))}</h4>
+      <p style="font-size:11px;line-height:1.3">${tr(`O mapinha é a Lua de verdade (${site.name}), medida pelo laser <b style="color:#ffe14d">LOLA</b> da sonda <b style="color:#ffe14d">LRO</b> da NASA.`,
+        `The little map is the real Moon (${site.name}), measured by the <b style="color:#ffe14d">LOLA</b> laser on NASA’s <b style="color:#ffe14d">LRO</b> probe.`)}</p></div>`;
   else {
     const [r, c] = t.pins[selPin], z = t.zones[r][c];
     const cost = zoneCost(z, posNow, [r, c]), back = returnCost([r, c]);
     const can = S.o2 >= cost.o && S.elixir >= cost.e, risky = S.o2 - cost.o < back;
     const times = S.dep[depKey(r, c)] || 0;
     info = `<div class="zinfo"><h4>${selPin + 1}. ${z.icon} ${z.type} ${sayBtn(z.type + '. ' + z.tip)}</h4>
-      <div class="meter"><span>Altitude</span><div class="mb"><i style="width:${Math.round(z.elev * 100)}%;background:#38b6ff"></i></div></div>
-      <div class="meter"><span>Inclinação</span><div class="mb"><i style="width:${Math.round(z.slope * 100)}%;background:#ff8a3d"></i></div></div>
-      <div class="meter"><span>Sucata</span><div class="mb"><i style="width:${Math.round(Math.max(.2, 1 - .3 * times) * 100)}%;background:#4fd44a"></i></div></div>
-      <div class="costs"><span class="cost ${S.o2 < cost.o ? 'no' : ''}">🫧−${cost.o}</span><span class="cost ${S.elixir < cost.e ? 'no' : ''}">⚡−${cost.e}</span><span class="cost">volta 🫧${back}</span></div>
-      ${risky && can ? '<div class="warn">⚠️ Não vai sobrar oxigênio para voltar!</div>' : ''}
-      <button class="pill-btn green small" id="go" ${can ? '' : 'disabled'}>EXPLORAR</button></div>`;
+      <div class="meter"><span>${tr('Altitude', 'Altitude')}</span><div class="mb"><i style="width:${Math.round(z.elev * 100)}%;background:#38b6ff"></i></div></div>
+      <div class="meter"><span>${tr('Inclinação', 'Slope')}</span><div class="mb"><i style="width:${Math.round(z.slope * 100)}%;background:#ff8a3d"></i></div></div>
+      <div class="meter"><span>${tr('Sucata', 'Scrap')}</span><div class="mb"><i style="width:${Math.round(Math.max(.2, 1 - .3 * times) * 100)}%;background:#4fd44a"></i></div></div>
+      <div class="costs"><span class="cost ${S.o2 < cost.o ? 'no' : ''}">🫧−${cost.o}</span><span class="cost ${S.elixir < cost.e ? 'no' : ''}">⚡−${cost.e}</span><span class="cost">${tr('volta', 'back')} 🫧${back}</span></div>
+      ${risky && can ? `<div class="warn">${tr('⚠️ Não vai sobrar oxigênio para voltar!', '⚠️ Not enough oxygen left to get back!')}</div>` : ''}
+      <button class="pill-btn green small" id="go" ${can ? '' : 'disabled'}>${tr('EXPLORAR', 'EXPLORE')}</button></div>`;
   }
-  $('#xp').innerHTML = `<div class="banner">${S.trip ? 'EXPEDIÇÃO' : 'ESCOLHA UM LOCAL'}</div>
+  $('#xp').innerHTML = `<div class="banner">${S.trip ? tr('EXPEDIÇÃO', 'EXPEDITION') : tr('ESCOLHA UM LOCAL', 'PICK A PLACE')}</div>
     <div class="xrow"><div class="lro"><canvas id="lro" width="236" height="236"></canvas><div class="tag">NASA LRO/LOLA · ${site.short}</div></div>${info}</div>
     <div class="xfoot"><div class="seg">${Object.entries(SITES).map(([k, s]) => `<button data-site="${k}" class="${k === S.site ? 'on' : ''}" ${S.trip ? 'disabled' : ''}>${s.short}</button>`).join('')}</div>
       <span>🎒 ${S.trip ? S.trip.bag : 0}🔩</span>
-      <button class="pill-btn blue small" id="home" ${S.trip ? '' : 'disabled'}>🏠 VOLTAR</button></div>`;
+      <button class="pill-btn blue small" id="home" ${S.trip ? '' : 'disabled'}>🏠 ${tr('VOLTAR', 'BACK')}</button></div>`;
   drawLRO(t);
   $$('[data-site]').forEach(b => b.onclick = () => { S.site = b.dataset.site; selPin = null; save(); render(); });
   $('#home').onclick = returnToBase;
@@ -618,7 +672,7 @@ function drawPanel(t) {
     const r = e.target.getBoundingClientRect();
     const cc = Math.floor((e.clientX - r.left) / r.width * GRID), rr = Math.floor((e.clientY - r.top) / r.height * GRID);
     const i = t.pins.findIndex(([a, b]) => a === rr && b === cc);
-    if (i >= 0) { selPin = i; drawPins(t); drawPanel(t); } else toast('Escolha uma região numerada');
+    if (i >= 0) { selPin = i; drawPins(t); drawPanel(t); } else toast(tr('Escolha uma região numerada', 'Pick a numbered area'));
   };
 }
 function drawLRO(t) {
@@ -648,22 +702,22 @@ function explore(t) {
   const got = zoneYield(z, r, c);
   S.dep[depKey(r, c)] = (S.dep[depKey(r, c)] || 0) + 1; S.stats.explored++; S.trip.bag += got;
   save(); hud(); drawPins(t); drawPanel(t);
-  const fact = LUNAR_FACTS[S.stats.explored % LUNAR_FACTS.length];
+  const fact = LUNAR_FACTS[S.stats.explored % LUNAR_FACTS.length][EN() ? 1 : 0];
   // popup original "BUSCA REALIZADA!" com número e texto dinâmicos
-  modalRaw(`<div class="popimg" style="${pos(PANEL)}"><img src="${A('pop_search.webp')}" alt="Busca realizada">
+  modalRaw(`<div class="popimg" style="${pos(PANEL)}"><img src="${A('pop_search.webp')}" alt="${tr('Busca realizada', 'Search done')}">
       <div class="abs lil stroke" style="${pos([210, 101, 54, 30])};display:grid;place-items:center;font-size:24px;background:linear-gradient(#5fe04a,#28a82c);border-radius:14px">+${got}</div>
       <div class="abs speech" style="${pos([24, 140, 246, 74])};border:0;background:#eef4ff;font-size:11px;line-height:1.35;padding:3px 8px;text-align:center;display:flex;align-items:center;justify-content:center"><span>${fact}</span></div>
-      <button class="hot" data-close style="${pos([254, 6, 38, 38])}" aria-label="Fechar"></button>
-      <div class="abs" style="left:10px;top:12px">${sayBtn(`Busca realizada! Mais ${got} sucatas na mochila. ${fact}`)}</div></div>`,
-    m => m.onclick = e => { if (e.target === m || e.target.closest('.popimg')) { closeModal(); if (S.stats.explored === 1) robot('A sucata fica na <b>mochila</b> até você <b>VOLTAR</b> para a base. Se o oxigênio acabar no caminho, eu te resgato, mas metade da mochila se perde!'); } });
-  if (S.voice) speak(`Mais ${got} sucatas! ${fact}`);
+      <button class="hot" data-close style="${pos([254, 6, 38, 38])}" aria-label="${tr('Fechar', 'Close')}"></button>
+      <div class="abs" style="left:10px;top:12px">${sayBtn(tr(`Busca realizada! Mais ${got} sucatas na mochila. ${fact}`, `Search done! ${got} more scrap in the backpack. ${fact}`))}</div></div>`,
+    m => m.onclick = e => { if (e.target === m || e.target.closest('.popimg')) { closeModal(); if (S.stats.explored === 1) robot(tr('A sucata fica na <b>mochila</b> até você <b>VOLTAR</b> para a base. Se o oxigênio acabar no caminho, eu te resgato, mas metade da mochila se perde!', 'Scrap stays in your <b>backpack</b> until you go <b>BACK</b> to the base. If oxygen runs out on the way, I’ll rescue you, but half the backpack is lost!')); } });
+  if (S.voice) speak(tr(`Mais ${got} sucatas! ${fact}`, `${got} more scrap! ${fact}`));
 }
 function returnToBase() {
   if (!S.trip) return;
   const need = returnCost(S.trip.pos);
   let bag = S.trip.bag, msg;
-  if (S.o2 >= need) msg = `De volta à base! Você trouxe <b>${bag} sucatas</b> e o tanque de oxigênio foi reabastecido. 🫧`;
-  else { const lost = Math.ceil(bag / 2); bag -= lost; msg = `O oxigênio não deu para voltar... Eu fui te resgatar! 🤖 Perdemos <b>${lost} sucatas</b> no caminho. Planeje melhor a volta!`; }
+  if (S.o2 >= need) msg = tr(`De volta à base! Você trouxe <b>${bag} sucatas</b> e o tanque de oxigênio foi reabastecido. 🫧`, `Back at the base! You brought <b>${bag} scrap</b> and the oxygen tank was refilled. 🫧`);
+  else { const lost = Math.ceil(bag / 2); bag -= lost; msg = tr(`O oxigênio não deu para voltar... Eu fui te resgatar! 🤖 Perdemos <b>${lost} sucatas</b> no caminho. Planeje melhor a volta!`, `Oxygen ran out on the way back... I came to rescue you! 🤖 We lost <b>${lost} scrap</b> on the way. Plan your trip back better!`); }
   S.scrap += bag; S.stats.scrapTotal += bag; S.o2 = o2Max(); S.trip = null; selPin = null;
   save(); go('home'); robot(msg);
 }
@@ -671,34 +725,35 @@ function returnToBase() {
 /* ================= melhorias (modal original) ================= */
 function costBox(c, keys, btnAttr, can, compact) {
   const ic = { e: 'ic_energy.png', o: 'ic_o2.png', s: 'ic_gear.png' }, have = { e: S.elixir, o: S.o2, s: S.scrap };
-  return `<div class="hd">${compact ? 'CUSTO' : 'CUSTO DA<br>MELHORIA'}</div>${keys.map(k => `<div class="row"><img src="${A(ic[k])}" alt=""><span class="v ${have[k] < c[k] ? 'no' : ''}">${c[k]}</span></div>`).join('')}
-    <button class="img-btn" ${btnAttr} ${can ? '' : 'disabled'} style="background-image:url(${A('btn_melhorar.png')})" aria-label="Melhorar"></button>`;
+  return `<div class="hd">${compact ? tr('CUSTO', 'COST') : tr('CUSTO DA<br>MELHORIA', 'UPGRADE<br>COST')}</div>${keys.map(k => `<div class="row"><img src="${A(ic[k])}" alt=""><span class="v ${have[k] < c[k] ? 'no' : ''}">${c[k]}</span></div>`).join('')}
+    <button class="img-btn" ${btnAttr} ${can ? '' : 'disabled'} style="background-image:url(${A('btn_melhorar.png')})" aria-label="${tr('Melhorar', 'Upgrade')}"></button>`;
 }
 function openUpgrades() {
-  if (S.trip) { toast('🚙 Volte para a base primeiro!'); return go('explore'); }
+  if (S.trip) { toast(tr('🚙 Volte para a base primeiro!', '🚙 Go back to the base first!')); return go('explore'); }
   const M = [15, 62]; // canto do modal na tela
   const at = ([x, y, w, h]) => pos([x, y, w, h]);
   const segs = (n, on, cls, r) => `<div class="levels ${cls}" style="${at(r)}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</div>`;
-  let h = `<img src="${A('modal_upg.webp')}" style="width:100%;height:100%;display:block" alt="Melhorias">`;
+  let h = `<img src="${A('modal_upg.webp')}" style="width:100%;height:100%;display:block" alt="${tr('Melhorias', 'Upgrades')}">`;
   // textos pequenos da arte ficam borrados: substituídos por texto nítido (e que diz o efeito real)
   const desc = (r, bg, txt) => `<div class="updesc" style="${at(r)};background:${bg}"><span>${txt}</span></div>`;
   const nextR = S.rocket < 5 ? ROCKET[S.rocket] : null;
-  h += desc([40, 66, 222, 26], '#11245f', 'Melhore sua base e a plantação, e conserte o foguete do Zuno!');
-  h += desc([109, 123, 104, 23], '#1a3157', S.baseLvl < 5 ? `Tanque de O₂: <b>${O2_CAP[S.baseLvl - 1]} → ${O2_CAP[S.baseLvl]}</b>` : `Tanque máximo: <b>${O2_CAP[4]}</b> de O₂`);
-  h += desc([110, 215, 102, 26], '#1e3a7a', ['Libera a <b>3ª cúpula</b> e usa menos 💧', 'Libera a <b>4ª cúpula</b> e usa menos 💧', 'Plantas crescem <b>1 dia</b> mais rápido', 'Plantação no <b>nível máximo</b>'][S.farmLvl - 1]);
-  h += desc([110, 316, 100, 27], '#1c3570', nextR ? `Próxima: <b>${nextR.name}</b> (${{ wires: 'fios', memory: 'memória', pipes: 'canos' }[nextR.game]})` : 'Foguete <b>pronto</b>!');
+  h += desc([40, 66, 222, 26], '#11245f', tr('Melhore sua base e a plantação, e conserte o foguete do Zuno!', 'Upgrade your base and farm, and fix Zuno’s rocket!'));
+  h += desc([109, 123, 104, 23], '#1a3157', S.baseLvl < 5 ? `${tr('Tanque de O₂', 'O₂ tank')}: <b>${O2_CAP[S.baseLvl - 1]} → ${O2_CAP[S.baseLvl]}</b>` : tr(`Tanque máximo: <b>${O2_CAP[4]}</b> de O₂`, `Max tank: <b>${O2_CAP[4]}</b> O₂`));
+  h += desc([110, 215, 102, 26], '#1e3a7a', tr(['Libera a <b>3ª cúpula</b> e usa menos 💧', 'Libera a <b>4ª cúpula</b> e usa menos 💧', 'Plantas crescem <b>1 dia</b> mais rápido', 'Plantação no <b>nível máximo</b>'],
+    ['Unlocks the <b>3rd dome</b> and uses less 💧', 'Unlocks the <b>4th dome</b> and uses less 💧', 'Plants grow <b>1 day</b> faster', 'Farm at <b>max level</b>'])[S.farmLvl - 1]);
+  h += desc([110, 316, 100, 27], '#1c3570', nextR ? `${tr('Próxima', 'Next')}: <b>${nextR.name}</b> (${tr({ wires: 'fios', memory: 'memória', pipes: 'canos' }, { wires: 'wires', memory: 'memory', pipes: 'pipes' })[nextR.game]})` : tr('Foguete <b>pronto</b>!', 'Rocket <b>ready</b>!'));
   // base
   h += segs(5, S.baseLvl, 'green', [110, 149, 106, 16]);
   if (S.baseLvl < 5) { const c = scaled(UPG.base.costs[S.baseLvl - 1]); h += `<div class="costbox compact" style="${at([215, 103, 72, 74])}">${costBox(c, ['e', 'o', 's'], 'data-up="base"', canPay(c), true)}</div>`; }
   // plantação
-  h += segs(4, S.farmLvl, 'cyan', [110, 246, 86, 16]) + `<div class="lvtxt" style="${at([112, 263, 84, 12])}">Nível ${S.farmLvl} / 4</div>`;
+  h += segs(4, S.farmLvl, 'cyan', [110, 246, 86, 16]) + `<div class="lvtxt" style="${at([112, 263, 84, 12])}">${tr('Nível', 'Level')} ${S.farmLvl} / 4</div>`;
   if (S.farmLvl < 4) { const c = scaled(UPG.farm.costs[S.farmLvl - 1]); h += `<div class="costbox" style="${at([212, 190, 72, 84])}">${costBox(c, ['e', 's'], 'data-up="farm"', canPay(c))}</div>`; }
   else h += `<div class="maxbadge" style="${at([218, 196, 62, 64])}"></div>`;
   // foguete
-  h += segs(5, S.rocket, 'cyan', [110, 351, 92, 16]) + `<div class="lvtxt" style="${at([112, 368, 92, 12])}">Nível ${S.rocket} / 5</div>`;
+  h += segs(5, S.rocket, 'cyan', [110, 351, 92, 16]) + `<div class="lvtxt" style="${at([112, 368, 92, 12])}">${tr('Nível', 'Level')} ${S.rocket} / 5</div>`;
   if (S.rocket < 5) { const c = scaled(ROCKET[S.rocket]); h += `<div class="costbox" style="${at([212, 287, 72, 98])}">${costBox(c, ['e', 'o', 's'], 'data-rocket', canPay(c))}</div>`; }
-  h += `<button class="hot" data-close style="${at([264, 12, 38, 36])}" aria-label="Fechar"></button>`;
-  const t = 'Melhorias. Toda melhoria precisa de energia, oxigênio e sucata ao mesmo tempo. Se faltar algum, o botão fica bloqueado.';
+  h += `<button class="hot" data-close style="${at([264, 12, 38, 36])}" aria-label="${tr('Fechar', 'Close')}"></button>`;
+  const t = tr('Melhorias. Toda melhoria precisa de energia, oxigênio e sucata ao mesmo tempo. Se faltar algum, o botão fica bloqueado.', 'Upgrades. Every upgrade needs energy, oxygen and scrap at the same time. If one is missing, the button stays locked.');
   h += `<div class="abs" style="left:10px;top:50px">${sayBtn(t)}</div>`;
   const rocketWarn = S.rocket < 5 && scaled(ROCKET[S.rocket]).o > o2Max();
   modalRaw(`<div class="popimg" style="${pos([M[0], M[1], 300, 418])}">${h}</div>`, m => {
@@ -707,7 +762,8 @@ function openUpgrades() {
       const key = b.dataset.up, lk = key === 'base' ? 'baseLvl' : 'farmLvl', c = scaled(UPG[key].costs[S[lk] - 1]);
       if (!canPay(c)) return;
       pay(c); S[lk]++; save(); closeModal(); render();
-      robot(key === 'base' ? `Base melhorada! Agora o tanque guarda <b>${o2Max()}</b> de oxigênio.` : `Plantação melhorada! ${slotsOpen() > 2 ? 'Nova cúpula liberada, ' : ''}menos água por planta e colheitas maiores. 🌱`);
+      robot(key === 'base' ? tr(`Base melhorada! Agora o tanque guarda <b>${o2Max()}</b> de oxigênio.`, `Base upgraded! The tank now holds <b>${o2Max()}</b> oxygen.`)
+        : tr(`Plantação melhorada! ${slotsOpen() > 2 ? 'Nova cúpula liberada, ' : ''}menos água por planta e colheitas maiores. 🌱`, `Farm upgraded! ${slotsOpen() > 2 ? 'New dome unlocked, ' : ''}less water per plant and bigger harvests. 🌱`));
     });
     const rb = $('[data-rocket]', m);
     if (rb) rb.onclick = () => {
@@ -717,11 +773,11 @@ function openUpgrades() {
       startMG(st, () => {
         pay(c); S.rocket++; save();
         if (S.rocket >= 5) { S.phase = 'outro'; save(); current = 'home'; render(); }
-        else { go('home'); robot(`Parte consertada: <b>${st.name}</b>! Faltam ${5 - S.rocket}. Zuno está cada vez mais perto de casa! 🚀`); }
+        else { go('home'); robot(tr(`Parte consertada: <b>${st.name}</b>! Faltam ${5 - S.rocket}. Zuno está cada vez mais perto de casa! 🚀`, `Part fixed: <b>${st.name}</b>! ${5 - S.rocket} to go. Zuno is getting closer to home! 🚀`)); }
       });
     };
   });
-  if (rocketWarn) robot(`A próxima parte do foguete precisa de <b>${scaled(ROCKET[S.rocket]).o}</b> de oxigênio, mas o tanque guarda só <b>${o2Max()}</b>. Melhore a <b>Base</b> primeiro!`);
+  if (rocketWarn) robot(tr(`A próxima parte do foguete precisa de <b>${scaled(ROCKET[S.rocket]).o}</b> de oxigênio, mas o tanque guarda só <b>${o2Max()}</b>. Melhore a <b>Base</b> primeiro!`, `The next rocket part needs <b>${scaled(ROCKET[S.rocket]).o}</b> oxygen, but the tank only holds <b>${o2Max()}</b>. Upgrade the <b>Base</b> first!`));
 }
 
 /* ================= minigames ================= */
@@ -736,8 +792,9 @@ function startTimer(sec, rect, onEnd) {
 function startMG(stage, onWin) {
   clearRobot();
   mgScreen = stage.game; current = 'minigame'; render();
-  const fail = () => modal('TEMPO ESGOTADO!', `<div class="say-row"><p>Não tem problema! Os recursos não foram gastos. Quer tentar de novo?</p>${sayBtn('Não tem problema! Os recursos não foram gastos. Quer tentar de novo?')}</div>
-      <div class="actions"><button class="pill-btn blue" id="quit">SAIR</button><button class="pill-btn green" id="retry">TENTAR DE NOVO</button></div>`, m => {
+  const failTxt = tr('Não tem problema! Os recursos não foram gastos. Quer tentar de novo?', 'No problem! Your resources were not spent. Want to try again?');
+  const fail = () => modal(tr('TEMPO ESGOTADO!', 'TIME’S UP!'), `<div class="say-row"><p>${failTxt}</p>${sayBtn(failTxt)}</div>
+      <div class="actions"><button class="pill-btn blue" id="quit">${tr('SAIR', 'QUIT')}</button><button class="pill-btn green" id="retry">${tr('TENTAR DE NOVO', 'TRY AGAIN')}</button></div>`, m => {
     $('#retry', m).onclick = () => { closeModal(); startMG(stage, onWin); };
     $('#quit', m).onclick = () => go('home');
   }, { noX: true });
@@ -791,14 +848,14 @@ function pipesGame(n, onWin, onFail) {
   const BOARD = [30, 202, 272, 256], ts = Math.floor(Math.min(BOARD[2] / (n + 2), BOARD[3] / n));
   let cells = '';
   for (let r = 0; r < n; r++) {
-    cells += `<div class="tile end">${r === r0 ? `<img src="${A('pipe_tank.png')}" alt="Água">` : ''}</div>`;
+    cells += `<div class="tile end">${r === r0 ? `<img src="${A('pipe_tank.png')}" alt="${tr('Água', 'Water')}">` : ''}</div>`;
     for (let c = 0; c < n; c++) cells += `<button class="tile" data-r="${r}" data-c="${c}">${pipeSVG(base[r][c])}</button>`;
-    cells += `<div class="tile end">${r === r1 ? `<img src="${A('pipe_res.png')}" alt="Reservatório">` : ''}</div>`;
+    cells += `<div class="tile end">${r === r1 ? `<img src="${A('pipe_res.png')}" alt="${tr('Reservatório', 'Reservoir')}">` : ''}</div>`;
   }
-  const t = 'Conecte os canos e leve a água até o reservatório! Toque nos canos para girar.';
+  const t = tr('Conecte os canos e leve a água até o reservatório! Toque nos canos para girar.', 'Connect the pipes and bring the water to the reservoir! Tap the pipes to turn them.');
   layer(`<div class="board" style="${pos(BOARD)};grid-template-columns:repeat(${n + 2},${ts}px);grid-auto-rows:${ts}px;background-size:${ts}px ${ts}px">${cells}</div>
     <div class="timer-ov" id="timer" style="${pos([150, 178, 64, 22])}"></div>
-    <button class="hot" id="mgx" style="${pos([285, 62, 43, 40])};border-radius:50%" aria-label="Sair"></button>
+    <button class="hot" id="mgx" style="${pos([285, 62, 43, 40])};border-radius:50%" aria-label="${tr('Sair', 'Quit')}"></button>
     <div class="abs" style="left:8px;top:150px">${sayBtn(t)}</div>`);
   const tiles = {};
   $$('.tile[data-r]').forEach(b => {
@@ -826,7 +883,7 @@ function pipesGame(n, onWin, onFail) {
   const check = () => {
     const { wet, done } = flow();
     Object.entries(tiles).forEach(([k, b]) => b.classList.toggle('wet', wet.has(k)));
-    if (done) { toast('💧 A água chegou ao reservatório!'); onWin(); }
+    if (done) { toast(tr('💧 A água chegou ao reservatório!', '💧 The water reached the reservoir!')); onWin(); }
   };
   for (let i = 0; i < 8 && flow().done; i++) { const [r, c] = path[rnd(0, path.length - 1)]; turns[r][c]++; tiles[r + ',' + c].querySelector('svg').style.transform = `rotate(${turns[r][c] * 90}deg)`; }
   check();
@@ -848,13 +905,13 @@ function wiresGame(n, onWin, onFail) {
   const B = [18, 200, 294, 238], rowH = B[3] / n;
   const yOf = i => (i + .5) * rowH;
   const LX = 1, RX = B[2] - 65;
-  const t = 'Conecte os fios que têm o mesmo símbolo para reativar o foguete! Toque num símbolo da esquerda e depois no igual da direita.';
+  const t = tr('Conecte os fios que têm o mesmo símbolo para reativar o foguete! Toque num símbolo da esquerda e depois no igual da direita.', 'Connect the wires with the same symbol to restart the rocket! Tap a symbol on the left, then the matching one on the right.');
   layer(`<div class="wboard" id="wb" style="${pos(B)}"><svg class="lines" id="lines" viewBox="0 0 ${B[2]} ${B[3]}"></svg>
       ${left.map((s, i) => `<button class="wnode" data-side="L" data-s="${s}" style="left:${LX}px;top:${yOf(i) - 23}px"><img src="${A(`node_l${SYM[s].l}.png`)}" alt="${SYM[s].name}"></button>`).join('')}
       ${right.map((s, i) => `<button class="wnode" data-side="R" data-s="${s}" style="left:${RX}px;top:${yOf(i) - 23}px"><img src="${A(`node_r${SYM[s].r}.png`)}" alt="${SYM[s].name}"></button>`).join('')}
     </div>
     <div class="timer-ov" id="timer" style="${pos([150, 166, 64, 22])}"></div>
-    <button class="hot" id="mgx" style="${pos([290, 60, 38, 36])};border-radius:50%" aria-label="Sair"></button>
+    <button class="hot" id="mgx" style="${pos([290, 60, 38, 36])};border-radius:50%" aria-label="${tr('Sair', 'Quit')}"></button>
     <div class="abs" style="left:8px;top:140px">${sayBtn(t)}</div>`);
   const lines = $('#lines'), done = new Set(), wb = $('#wb');
   let sel = null, temp = '';
@@ -868,9 +925,9 @@ function wiresGame(n, onWin, onFail) {
   const tryConnect = rb => {
     if (!sel || !rb || rb.dataset.side !== 'R' || done.has(+rb.dataset.s)) return;
     if (rb.dataset.s === sel.dataset.s) { done.add(+sel.dataset.s); sel.classList.add('done'); rb.classList.add('done'); }
-    else { rb.classList.remove('bad'); void rb.offsetWidth; rb.classList.add('bad'); toast('❌ Símbolo diferente!'); }
+    else { rb.classList.remove('bad'); void rb.offsetWidth; rb.classList.add('bad'); toast(tr('❌ Símbolo diferente!', '❌ Different symbol!')); }
     sel.classList.remove('sel'); sel = null; temp = ''; redraw();
-    if (done.size === n) { toast('⚡ Foguete reativado!'); onWin(); }
+    if (done.size === n) { toast(tr('⚡ Foguete reativado!', '⚡ Rocket restarted!')); onWin(); }
   };
   wb.addEventListener('pointerdown', e => {
     if (!mgTimer) return;
@@ -893,9 +950,9 @@ function wiresGame(n, onWin, onFail) {
 
 // ---- jogo da memória: encontre os pares de equipamentos ----
 const MEM_ITEMS = [
-  { k: 'capacete', name: 'Capacete' }, { k: 'chave', name: 'Chave inglesa' }, { k: 'oxigenio', name: 'Tanque de oxigênio' },
-  { k: 'antena', name: 'Antena' }, { k: 'luva', name: 'Luva espacial' }, { k: 'bateria', name: 'Bateria', svg: true }
-];
+  { k: 'capacete', pt: 'Capacete', en: 'Helmet' }, { k: 'chave', pt: 'Chave inglesa', en: 'Wrench' }, { k: 'oxigenio', pt: 'Tanque de oxigênio', en: 'Oxygen tank' },
+  { k: 'antena', pt: 'Antena', en: 'Antenna' }, { k: 'luva', pt: 'Luva espacial', en: 'Space glove' }, { k: 'bateria', pt: 'Bateria', en: 'Battery', svg: true }
+].map(it => ({ ...it, get name() { return it[LANG]; } }));
 function memoryGame(pairs, onWin, onFail) {
   const items = MEM_ITEMS.slice(0, pairs);
   const deck = shuffle([...items, ...items].map(it => ({ ...it })));
@@ -905,14 +962,14 @@ function memoryGame(pairs, onWin, onFail) {
   const face = it => it.svg
     ? `<img src="${A('mem_blank.png')}" alt=""><div class="mem-icon">${ART[it.k]()}</div>`
     : `<img src="${A('mem_' + it.k + '.png')}" alt="${it.name}">`;
-  const t = 'Jogo da memória! Encontre os pares de itens para coletar os equipamentos do conserto. Toque em duas cartas.';
-  layer(`<div class="updesc mem-sub" style="${pos([60, 125, 210, 25])}"><span><b>Jogo da Memória:</b> encontre os pares de itens para coletar os equipamentos!</span></div>
+  const t = tr('Jogo da memória! Encontre os pares de itens para coletar os equipamentos do conserto. Toque em duas cartas.', 'Memory game! Find the matching pairs to collect the repair equipment. Tap two cards.');
+  layer(`<div class="updesc mem-sub" style="${pos([60, 125, 210, 25])}"><span>${tr('<b>Jogo da Memória:</b> encontre os pares de itens para coletar os equipamentos!', '<b>Memory Game:</b> find the matching pairs to collect the equipment!')}</span></div>
     <div class="timer-ov" id="timer" style="${pos([150, 166, 64, 22])}"></div>
-    <div class="mem-pairs" id="memPairs" style="${pos([224, 165, 76, 24])}">Pares: <b>0/${pairs}</b></div>
-    <div class="mem-board" style="${pos(B)}">${deck.map((it, i) => `<button class="mem-card" data-i="${i}" aria-label="Carta" style="${pos([pad + (i % cols) * (cw + gap), top + Math.floor(i / cols) * (ch + gap), cw, ch])}">
+    <div class="mem-pairs" id="memPairs" style="${pos([224, 165, 76, 24])}">${tr('Pares', 'Pairs')}: <b>0/${pairs}</b></div>
+    <div class="mem-board" style="${pos(B)}">${deck.map((it, i) => `<button class="mem-card" data-i="${i}" aria-label="${tr('Carta', 'Card')}" style="${pos([pad + (i % cols) * (cw + gap), top + Math.floor(i / cols) * (ch + gap), cw, ch])}">
       <div class="mem-inner"><div class="mem-face mem-back"><img src="${A('mem_back.png')}" alt=""></div><div class="mem-face mem-front">${face(it)}</div></div></button>`).join('')}</div>
-    <div class="mem-speech" style="${pos([152, 466, 156, 46])}"><span>Encontre todos os pares e receba os equipamentos para consertar o foguete!</span></div>
-    <button class="hot" id="mgx" style="${pos([290, 60, 38, 36])};border-radius:50%" aria-label="Sair"></button>
+    <div class="mem-speech" style="${pos([152, 466, 156, 46])}"><span>${tr('Encontre todos os pares e receba os equipamentos para consertar o foguete!', 'Find all the pairs and get the equipment to fix the rocket!')}</span></div>
+    <button class="hot" id="mgx" style="${pos([290, 60, 38, 36])};border-radius:50%" aria-label="${tr('Sair', 'Quit')}"></button>
     <div class="abs" style="left:8px;top:140px">${sayBtn(t)}</div>`);
   let open = [], found = 0, busy = false;
   const cards = $$('.mem-card');
@@ -924,9 +981,9 @@ function memoryGame(pairs, onWin, onFail) {
     const ia = deck[+a.dataset.i], ib = deck[+b.dataset.i];
     if (ia.k === ib.k) {
       found++; a.classList.add('done'); b.classList.add('done');
-      $('#memPairs').innerHTML = `Pares: <b>${found}/${pairs}</b>`;
+      $('#memPairs').innerHTML = `${tr('Pares', 'Pairs')}: <b>${found}/${pairs}</b>`;
       toast(`✔ ${ia.name}!`);
-      if (found === pairs) { toast('🧰 Equipamentos coletados!'); onWin(); }
+      if (found === pairs) { toast(tr('🧰 Equipamentos coletados!', '🧰 Equipment collected!')); onWin(); }
     } else {
       busy = true;
       setTimeout(() => { a.classList.remove('flip'); b.classList.remove('flip'); busy = false; }, 800);
@@ -939,9 +996,9 @@ function memoryGame(pairs, onWin, onFail) {
 /* ================= dormir ================= */
 const sleepGain = () => Math.round((S.fedToday ? 30 : 15) * D().sleep);
 function renderSleep() {
-  const t = `Descansar recupera ${sleepGain()} de energia, enche o oxigênio e avança 1 dia. As plantas crescem durante a noite!`;
-  layer(`<button class="hot" id="sleepGo" style="${pos([70, 388, 188, 44])};border-radius:22px" aria-label="Dormir"></button>
-    <div class="abs" style="left:286px;top:345px">${sayBtn(t + (S.fedToday ? '' : ' Dica: colha uma planta antes de dormir, assim o Zuno recupera mais energia!'))}</div>`);
+  const t = tr(`Descansar recupera ${sleepGain()} de energia, enche o oxigênio e avança 1 dia. As plantas crescem durante a noite!`, `Resting restores ${sleepGain()} energy, refills oxygen and moves ahead 1 day. Plants grow during the night!`);
+  layer(`<button class="hot" id="sleepGo" style="${pos([70, 388, 188, 44])};border-radius:22px" aria-label="${tr('Dormir', 'Sleep')}"></button>
+    <div class="abs" style="left:286px;top:345px">${sayBtn(t + (S.fedToday ? '' : tr(' Dica: colha uma planta antes de dormir, assim o Zuno recupera mais energia!', ' Tip: harvest a plant before sleeping so Zuno gets more energy back!')))}</div>`);
   $('#sleepGo').onclick = doSleep;
 }
 async function doSleep() {
@@ -954,24 +1011,26 @@ async function doSleep() {
   S.elixir = Math.min(100, S.elixir + gain); S.o2 = o2Max(); S.fedToday = false;
   Object.keys(S.dep).forEach(k => { S.dep[k] = Math.max(0, S.dep[k] - 1); if (!S.dep[k]) delete S.dep[k]; });
   save();
-  f.textContent = `☀️ Dia ${S.day}`;
+  f.textContent = `☀️ ${tr('Dia', 'Day')} ${S.day}`;
   await wait(1000);
   f.classList.remove('on');
   go('home');
   const ready = S.plots.filter(p => p.crop && p.left <= 0).length;
-  robot(`Bom dia! Zuno recuperou <b>${gain}</b> de energia e o oxigênio foi reabastecido.${grown ? ` 🌱 ${grown} planta(s) cresceram.` : ''}${ready ? ` <b>${ready}</b> pronta(s) para colher!` : ''}`);
+  robot(tr(`Bom dia! Zuno recuperou <b>${gain}</b> de energia e o oxigênio foi reabastecido.${grown ? ` 🌱 ${grown} planta(s) cresceram.` : ''}${ready ? ` <b>${ready}</b> pronta(s) para colher!` : ''}`,
+    `Good morning! Zuno got <b>${gain}</b> energy back and the oxygen was refilled.${grown ? ` 🌱 ${grown} plant(s) grew.` : ''}${ready ? ` <b>${ready}</b> ready to harvest!` : ''}`));
 }
 
 /* ================= final ================= */
 function renderEnd() {
-  const t = `Missão cumprida! Você consertou o foguete em ${S.day} dias e o Zuno voltou para a família dele. Obrigado, astronauta! Quem sabe um dia você vai para o espaço de verdade!`;
+  const t = tr(`Missão cumprida! Você consertou o foguete em ${S.day} dias e o Zuno voltou para a família dele. Obrigado, astronauta! Quem sabe um dia você vai para o espaço de verdade!`,
+    `Mission complete! You fixed the rocket in ${S.day} days and Zuno went back to his family. Thank you, astronaut! Maybe one day you’ll go to space for real!`);
   layer(`<div class="story" style="gap:8px;padding-top:22px">
-    <div class="logo" style="font-size:30px;text-align:center;line-height:1.1">MISSÃO<br>CUMPRIDA!</div>
+    <div class="logo" style="font-size:30px;text-align:center;line-height:1.1">${tr('MISSÃO<br>CUMPRIDA!', 'MISSION<br>COMPLETE!')}</div>
     <div class="scene" style="height:190px"><img src="${A('moon_scene.png')}" style="left:-15px;top:-10px;width:330px;height:210px;object-fit:cover" alt="">
-      <img id="rk" src="${A('rocket.png')}" style="left:110px;top:20px;width:110px" alt="Foguete"></div>
+      <img id="rk" src="${A('rocket.png')}" style="left:110px;top:20px;width:110px" alt="${tr('Foguete', 'Rocket')}"></div>
     <div class="story-text glass" style="padding:8px 10px;font-size:13px"><p style="flex:1">${t}</p>${sayBtn(t)}</div>
-    <table class="dtab" style="font-size:12px"><tr><td>Dias na Lua</td><td>${S.day}</td></tr><tr><td>Expedições</td><td>${S.stats.explored}</td></tr><tr><td>Colheitas</td><td>${S.stats.harvested}</td></tr><tr><td>Sucata coletada</td><td>${S.stats.scrapTotal}</td></tr></table>
-    <button class="pill-btn green" id="again">🔄 JOGAR DE NOVO</button></div>`);
+    <table class="dtab" style="font-size:12px"><tr><td>${tr('Dias na Lua', 'Days on the Moon')}</td><td>${S.day}</td></tr><tr><td>${tr('Expedições', 'Expeditions')}</td><td>${S.stats.explored}</td></tr><tr><td>${tr('Colheitas', 'Harvests')}</td><td>${S.stats.harvested}</td></tr><tr><td>${tr('Sucata coletada', 'Scrap collected')}</td><td>${S.stats.scrapTotal}</td></tr></table>
+    <button class="pill-btn green" id="again">🔄 ${tr('JOGAR DE NOVO', 'PLAY AGAIN')}</button></div>`);
   setTimeout(() => { const r = $('#rk'); if (r) r.classList.add('fly'); }, 900);
   for (let i = 0; i < 22; i++) { const c = document.createElement('div'); c.className = 'confetti'; c.textContent = ['⭐', '✨', '🎉', '💚'][i % 4]; c.style.left = rnd(0, 310) + 'px'; c.style.animationDelay = (i * .12) + 's'; $('#layer').appendChild(c); }
   if (S.voice) speak(t);
@@ -979,66 +1038,69 @@ function renderEnd() {
 }
 
 /* ================= dados NASA ================= */
-const statusTag = s => ({ live: '<span class="status live">AO VIVO</span>', cache: '<span class="status cache">CACHE</span>', off: '<span class="status off">OFFLINE</span>', load: '<span class="status load">carregando</span>' }[s] || '');
+const statusTag = s => ({ live: `<span class="status live">${tr('AO VIVO', 'LIVE')}</span>`, cache: '<span class="status cache">CACHE</span>', off: '<span class="status off">OFFLINE</span>', load: `<span class="status load">${tr('carregando', 'loading')}</span>` }[s] || '');
 function openNasa() {
-  const o = NASA.osdr, s = SITES[S.site];
-  const t = 'Estes são os dados reais da NASA usados no jogo: o estudo de plantas OSD-895 e o relevo da Lua medido pela sonda LRO.';
+  const o = NASA.osdr, s = SITES[S.site], ND = noData();
+  const t = tr('Estes são os dados reais da NASA usados no jogo: o estudo de plantas OSD-895 e o relevo da Lua medido pela sonda LRO.', 'This is the real NASA data used in the game: the OSD-895 plant study and the Moon’s terrain measured by the LRO probe.');
   const src = o.source;
-  const val = (f, u) => f && f.value != null ? `${f.value} ${esc(f.unit || u || '')}` : `<i>${NO_DATA}</i>`;
-  const rng = f => f && f.min != null ? `${f.min}–${f.max} ${esc(f.unit || '')}` : `<i>${esc((f && f.missing) || NO_DATA)}</i>`;
+  const val = (f, u) => f && f.value != null ? `${f.value} ${esc(f.unit || u || '')}` : `<i>${ND}</i>`;
+  const rng = f => f && f.min != null ? `${f.min}–${f.max} ${esc(f.unit || '')}` : `<i>${esc((f && f.missing && !EN()) ? f.missing : ND)}</i>`;
   const side = areaSide();
   const crops = Object.keys(CROPS).map(k => {
     const c = CROPS[k], r = c.sci895, est = estimateKg(r, side * side);
-    if (!r) return `<tr><td>${c.name}</td><td><i>${NO_DATA}</i></td></tr>`;
+    if (!r) return `<tr><td>${c.name}</td><td><i>${ND}</i></td></tr>`;
     return `<tr><td>${c.name}<br><small>${esc(r.sampleName)}</small></td><td>
-      Colheita: <b>${r.harvestType === 'spread' ? 'repetida (spread)' : 'única (batch)'}</b> · ciclos avaliados: ${r.cyclesEvaluated ?? '—'}<br>
-      Age At Sample Harvest: <b>${val(r.age)}</b>${r.harvestType === 'spread' ? ' <small>(duração total do cultivo, não o tempo até a 1ª colheita)</small>' : ''}<br>
+      ${tr('Colheita', 'Harvest')}: <b>${r.harvestType === 'spread' ? tr('repetida (spread)', 'repeated (spread)') : tr('única (batch)', 'single (batch)')}</b> · ${tr('ciclos avaliados', 'cycles evaluated')}: ${r.cyclesEvaluated ?? '—'}<br>
+      Age At Sample Harvest: <b>${val(r.age)}</b>${r.harvestType === 'spread' ? ` <small>${tr('(duração total do cultivo, não o tempo até a 1ª colheita)', '(total growing time, not the time to the 1st harvest)')}</small>` : ''}<br>
       Mean Edible Freshweight: <b>${val(r.meanEdibleFreshweight)}</b><br>
       Edible Freshweight Range: ${rng(r.edibleFreshweightRange)}<br>
-      Estimativa ${side}×${side} m (${side * side} m²): ${est ? `<b>${est.kg.toFixed(2)} kg</b>${est.min != null ? ` (faixa ${est.min.toFixed(2)}–${est.max.toFixed(2)} kg)` : ''}` : `<i>${NO_DATA}</i>`}</td></tr>`;
+      ${tr('Estimativa', 'Estimate')} ${side}×${side} m (${side * side} m²): ${est ? `<b>${est.kg.toFixed(2)} kg</b>${est.min != null ? ` (${tr('faixa', 'range')} ${est.min.toFixed(2)}–${est.max.toFixed(2)} kg)` : ''}` : `<i>${ND}</i>`}</td></tr>`;
   }).join('');
-  modal('DADOS DA NASA', `<div class="say-row"><p style="font-size:12px">${t}</p>${sayBtn(t)}</div>
+  modal(tr('DADOS DA NASA', 'NASA DATA'), `<div class="say-row"><p style="font-size:12px">${t}</p>${sayBtn(t)}</div>
     <h3 class="sec">🌱 NASA OSDR OSD-895 ${statusTag(o.status)}</h3>
-    <p style="font-size:10.5px;margin:2px 0 4px">Estufa EDEN ISS, na <b>Antártida (Terra)</b>, 2018. Não são plantas cultivadas na Lua.</p>
+    <p style="font-size:10.5px;margin:2px 0 4px">${tr('Estufa EDEN ISS, na <b>Antártida (Terra)</b>, 2018. Não são plantas cultivadas na Lua.', 'EDEN ISS greenhouse, in <b>Antarctica (Earth)</b>, 2018. These plants were not grown on the Moon.')}</p>
     <table class="dtab">${crops}
-      <tr><td>Fórmula</td><td>produção estimada (kg) = Mean Edible Freshweight (kg/m²) × área plantada (m²)</td></tr>
-      <tr><td>Campos usados</td><td>s_OSD-895.txt: Characteristics[cultivar], Parameter Value[Harvest Type] · a_OSD-895_*.txt: Parameter Value[Age At Sample Harvest], [Mean Edible Freshweight], [Edible Freshweight Range], unidos por Sample Name</td></tr>
-      <tr><td>Arquivo</td><td>${src ? `<a href="${esc(src.zipUrl)}" target="_blank" rel="noopener">${esc(src.zipFile)}</a><br><small>lista: ${esc(src.filesApi)}<br>obtido em ${new Date(src.fetchedAt).toLocaleString('pt-BR')}</small>` : `<i>${NO_DATA}</i>`}</td></tr>
-      <tr><td>No jogo</td><td>dias de jogo, água e energia são <b>balanceamento do jogo</b>, separados do estudo. A barra da cúpula conta dias de jogo, não mede a planta.</td></tr>
+      <tr><td>${tr('Fórmula', 'Formula')}</td><td>${tr('produção estimada (kg) = Mean Edible Freshweight (kg/m²) × área plantada (m²)', 'estimated yield (kg) = Mean Edible Freshweight (kg/m²) × planted area (m²)')}</td></tr>
+      <tr><td>${tr('Campos usados', 'Fields used')}</td><td>s_OSD-895.txt: Characteristics[cultivar], Parameter Value[Harvest Type] · a_OSD-895_*.txt: Parameter Value[Age At Sample Harvest], [Mean Edible Freshweight], [Edible Freshweight Range], ${tr('unidos por Sample Name', 'joined by Sample Name')}</td></tr>
+      <tr><td>${tr('Arquivo', 'File')}</td><td>${src ? `<a href="${esc(src.zipUrl)}" target="_blank" rel="noopener">${esc(src.zipFile)}</a><br><small>${tr('lista', 'list')}: ${esc(src.filesApi)}<br>${tr('obtido em', 'fetched on')} ${new Date(src.fetchedAt).toLocaleString(LOC())}</small>` : `<i>${ND}</i>`}</td></tr>
+      <tr><td>${tr('No jogo', 'In the game')}</td><td>${tr('dias de jogo, água e energia são <b>balanceamento do jogo</b>, separados do estudo. A barra da cúpula conta dias de jogo, não mede a planta.', 'game days, water and energy are <b>game balance</b>, kept apart from the study. The dome bar counts game days; it does not measure the plant.')}</td></tr>
     </table>
     <h3 class="sec">🌕 LRO / LOLA ${statusTag(NASA.lro.status)}</h3>
     <table class="dtab">
-      <tr><td>Região</td><td>${s.name} (${s.lat}, ${s.lon})</td></tr>
-      <tr><td>Camadas</td><td>LRO_LOLA_DEM_Global_128ppd_v04 (elevação) e LRO_LOLA_ClrShade (relevo)</td></tr>
-      <tr><td>No jogo</td><td>altitude e inclinação de cada local → custo de oxigênio e quantidade de sucata</td></tr>
-      <tr><td>Fonte</td><td><a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a></td></tr>
+      <tr><td>${tr('Região', 'Region')}</td><td>${s.name} (${s.lat}, ${s.lon})</td></tr>
+      <tr><td>${tr('Camadas', 'Layers')}</td><td>LRO_LOLA_DEM_Global_128ppd_v04 (${tr('elevação', 'elevation')}) ${tr('e', 'and')} LRO_LOLA_ClrShade (${tr('relevo', 'shaded relief')})</td></tr>
+      <tr><td>${tr('No jogo', 'In the game')}</td><td>${tr('altitude e inclinação de cada local → custo de oxigênio e quantidade de sucata', 'altitude and slope of each place → oxygen cost and amount of scrap')}</td></tr>
+      <tr><td>${tr('Fonte', 'Source')}</td><td><a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a></td></tr>
     </table>`);
 }
 
 /* ================= controle parental ================= */
 function parentalGate(next) {
   const a = rnd(6, 9), b = rnd(6, 9);
-  modal('ÁREA DOS PAIS', `<p style="text-align:center">Para continuar, responda: <b>${a} × ${b} = ?</b></p>
+  modal(tr('ÁREA DOS PAIS', 'PARENTS’ AREA'), `<p style="text-align:center">${tr('Para continuar, responda', 'To continue, answer')}: <b>${a} × ${b} = ?</b></p>
     <div class="gate" style="margin-top:8px"><input id="gateIn" type="number" inputmode="numeric" autocomplete="off"></div>
-    <div class="actions"><button class="pill-btn green" id="gateOk">ENTRAR</button></div>`, m => {
-    const ok = () => { if (+$('#gateIn', m).value === a * b) { closeModal(); next(); } else toast('Resposta incorreta'); };
+    <div class="actions"><button class="pill-btn green" id="gateOk">${tr('ENTRAR', 'ENTER')}</button></div>`, m => {
+    const ok = () => { if (+$('#gateIn', m).value === a * b) { closeModal(); next(); } else toast(tr('Resposta incorreta', 'Wrong answer')); };
     $('#gateOk', m).onclick = ok; $('#gateIn', m).onkeydown = e => { if (e.key === 'Enter') ok(); }; $('#gateIn', m).focus();
   });
 }
 function openSettings() {
   const p = S.parental;
-  modal('MODO SUPERVISÃO', `
-    <div class="set-row"><span>Limite diário de tela</span><select id="lim">${[0, 15, 30, 45, 60, 90].map(v => `<option value="${v}" ${v === p.limitMin ? 'selected' : ''}>${v ? v + ' min' : 'Sem limite'}</option>`).join('')}</select></div>
-    <div class="set-row"><span>Tempo jogado hoje</span><b>${Math.floor(p.usedSec / 60)} min</b></div>
-    <div class="set-row"><span>Idade da criança</span><select id="age">${[7, 8, 9, 10, 11, 12].map(v => `<option ${v === S.age ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div class="set-row"><span>Narração do robô</span><select id="voice"><option value="1" ${S.voice ? 'selected' : ''}>Ligada</option><option value="0" ${S.voice ? '' : 'selected'}>Desligada</option></select></div>
-    <div class="actions"><button class="pill-btn red small" id="reset">🗑️ REINICIAR</button><button class="pill-btn green" data-close>SALVAR</button></div>`, m => {
+  modal(tr('MODO SUPERVISÃO', 'PARENT MODE'), `
+    <div class="set-row"><span>${tr('Limite diário de tela', 'Daily screen limit')}</span><select id="lim">${[0, 15, 30, 45, 60, 90].map(v => `<option value="${v}" ${v === p.limitMin ? 'selected' : ''}>${v ? v + ' min' : tr('Sem limite', 'No limit')}</option>`).join('')}</select></div>
+    <div class="set-row"><span>${tr('Tempo jogado hoje', 'Played today')}</span><b>${Math.floor(p.usedSec / 60)} min</b></div>
+    <div class="set-row"><span>${tr('Idade da criança', 'Child’s age')}</span><select id="age">${[7, 8, 9, 10, 11, 12].map(v => `<option ${v === S.age ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div class="set-row"><span>${tr('Narração do robô', 'Robot narration')}</span><select id="voice"><option value="1" ${S.voice ? 'selected' : ''}>${tr('Ligada', 'On')}</option><option value="0" ${S.voice ? '' : 'selected'}>${tr('Desligada', 'Off')}</option></select></div>
+    <div class="set-row"><span>${tr('Idioma', 'Language')}</span><select id="langSel"><option value="pt" ${EN() ? '' : 'selected'}>Português</option><option value="en" ${EN() ? 'selected' : ''}>English</option></select></div>
+    <div class="actions"><button class="pill-btn red small" id="reset">🗑️ ${tr('REINICIAR', 'RESTART')}</button><button class="pill-btn green" data-close>${tr('SALVAR', 'SAVE')}</button></div>`, m => {
     $('#lim', m).onchange = e => { p.limitMin = +e.target.value; save(); };
-    $('#age', m).onchange = e => { S.age = +e.target.value; S.diff = ageToDiff(S.age); S.o2 = Math.min(S.o2, o2Max()); save(); hud(); toast('Nível: ' + D().name); };
+    $('#age', m).onchange = e => { S.age = +e.target.value; S.diff = ageToDiff(S.age); S.o2 = Math.min(S.o2, o2Max()); save(); hud(); toast(tr('Nível: ', 'Level: ') + D().name); };
     $('#voice', m).onchange = e => { S.voice = e.target.value === '1'; save(); };
+    $('#langSel', m).onchange = e => { setLang(e.target.value); openSettings(); };
     // confirmação dentro do jogo (o confirm() nativo é bloqueado em alguns navegadores)
-    $('#reset', m).onclick = () => modal('REINICIAR?', `<div class="say-row"><p style="text-align:center">Apagar todo o progresso e começar um jogo novo? Isso não pode ser desfeito.</p>${sayBtn('Apagar todo o progresso e começar um jogo novo? Isso não pode ser desfeito.')}</div>
-      <div class="actions"><button class="pill-btn blue" data-close>CANCELAR</button><button class="pill-btn red" id="resetYes">SIM, REINICIAR</button></div>`,
+    const resetTxt = tr('Apagar todo o progresso e começar um jogo novo? Isso não pode ser desfeito.', 'Erase all progress and start a new game? This cannot be undone.');
+    $('#reset', m).onclick = () => modal(tr('REINICIAR?', 'RESTART?'), `<div class="say-row"><p style="text-align:center">${resetTxt}</p>${sayBtn(resetTxt)}</div>
+      <div class="actions"><button class="pill-btn blue" data-close>${tr('CANCELAR', 'CANCEL')}</button><button class="pill-btn red" id="resetYes">${tr('SIM, REINICIAR', 'YES, RESTART')}</button></div>`,
       m2 => { $('#resetYes', m2).onclick = newGame; }, { noX: true });
   });
 }
@@ -1048,13 +1110,13 @@ function checkLimit() {
   const over = p.limitMin > 0 && p.usedSec >= p.limitMin * 60;
   if (over && !$('#lock')) {
     stopMG();
-    const t = 'Hora de descansar! O Zuno também precisa dormir. Volte amanhã para continuar a missão.';
+    const t = tr('Hora de descansar! O Zuno também precisa dormir. Volte amanhã para continuar a missão.', 'Time to rest! Zuno needs to sleep too. Come back tomorrow to continue the mission.');
     const lock = document.createElement('div'); lock.id = 'lock'; lock.className = 'lock';
-    lock.innerHTML = `<img src="${A('zuno_sleep.png')}" style="width:240px;border-radius:18px" alt=""><div class="logo" style="font-size:24px">HORA DE DESCANSAR</div>
-      <div class="story-text glass" style="padding:8px 10px"><p style="flex:1">${t}</p>${sayBtn(t)}</div><button class="pill-btn blue small" id="unlock">Área dos pais</button>`;
+    lock.innerHTML = `<img src="${A('zuno_sleep.png')}" style="width:240px;border-radius:18px" alt=""><div class="logo" style="font-size:24px">${tr('HORA DE DESCANSAR', 'TIME TO REST')}</div>
+      <div class="story-text glass" style="padding:8px 10px"><p style="flex:1">${t}</p>${sayBtn(t)}</div><button class="pill-btn blue small" id="unlock">${tr('Área dos pais', 'Parents’ area')}</button>`;
     $('#screen').appendChild(lock);
     if (S.voice) speak(t);
-    $('#unlock').onclick = () => parentalGate(() => { p.limitMin = 0; save(); lock.remove(); toast('Limite removido para hoje'); });
+    $('#unlock').onclick = () => parentalGate(() => { p.limitMin = 0; save(); lock.remove(); toast(tr('Limite removido para hoje', 'Limit removed for today')); });
   }
   return over;
 }

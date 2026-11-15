@@ -197,6 +197,23 @@ button.chip:active { transform: translateY(1px); }
 .wnode.bad { animation: shake .3s; }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
+/* ---------- jogo da memória ---------- */
+.mem-sub { background: #1d3c8e; font-size: 10px; justify-content: center; text-align: center; }
+.mem-pairs { position: absolute; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; border-radius: 12px; background: #142a6c; border: 2px solid #5b86ff; font-family: 'Lilita One'; font-size: 12px; color: #fff; }
+.mem-pairs b { color: #ffd21f; font-weight: 400; }
+.mem-board { position: absolute; border-radius: 14px; background: #1b2d78; box-shadow: inset 0 0 0 3px #7fd3ff, 0 0 12px rgba(127,211,255,.5); }
+.mem-card { position: absolute; padding: 0; perspective: 500px; }
+.mem-inner { position: relative; width: 100%; height: 100%; transition: transform .35s; transform-style: preserve-3d; }
+.mem-card.flip .mem-inner, .mem-card.done .mem-inner { transform: rotateY(180deg); }
+.mem-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.mem-face img { width: 100%; height: 100%; display: block; }
+.mem-front { transform: rotateY(180deg); }
+.mem-icon { position: absolute; inset: 8% 16%; }
+.mem-icon svg { width: 100%; height: 100%; display: block; }
+.mem-card.done .mem-front { animation: memok .5s ease; filter: drop-shadow(0 0 5px #5ce065); }
+@keyframes memok { 50% { transform: rotateY(180deg) scale(1.1); } }
+.mem-speech { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; background: #eaf2ff; border-radius: 10px; color: #142060; font-weight: 700; font-size: 10.5px; line-height: 1.25; padding: 2px 4px; }
+
 /* ---------- robô, modais, toast ---------- */
 .bubble { position: absolute; left: 8px; right: 8px; bottom: 92px; z-index: 20; display: flex; gap: 6px; align-items: center; padding: 8px; animation: pop .25s ease; }
 .bubble .rb { width: 74px; height: 74px; flex: none; border-radius: 14px; overflow: hidden; }

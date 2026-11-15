@@ -74,7 +74,7 @@ const UPG = {
 const ROCKET = [
   { name: 'Tanque de combustível', game: 'pipes', n: 5, e: 30, o: 40, s: 12 },
   { name: 'Fiação do painel', game: 'wires', n: 4, e: 40, o: 60, s: 20 },
-  { name: 'Bomba de água', game: 'pipes', n: 5, e: 50, o: 80, s: 28 },
+  { name: 'Equipamentos de bordo', game: 'memory', n: 6, e: 50, o: 80, s: 28 },
   { name: 'Computador de bordo', game: 'wires', n: 5, e: 55, o: 110, s: 36 },
   { name: 'Motor principal', game: 'pipes', n: 6, e: 60, o: 130, s: 45 }
 ];
@@ -244,6 +244,7 @@ const SCREENS = {
   pipes: { bg: 'bg_pipes.webp', hud: { e: [36, 35, 66, 18.5], o: [142, 34, 65, 18.5], s: [250, 34.5, 61, 18] }, nav: null },
   wires: { bg: 'bg_wires.webp', hud: { e: [42, 32.5, 64, 16], o: [148, 32.5, 55.5, 16], s: [243.5, 33, 53, 16] }, nav: null }
 };
+SCREENS.memory = SCREENS.wires; // jogo da memória usa o mesmo cenário do conserto do foguete
 
 /* ================= HUD / toast / robô / modal ================= */
 function nextScrapGoal() { return S.rocket < 5 ? scaled(ROCKET[S.rocket]).s : 50; }
@@ -650,7 +651,7 @@ function openUpgrades() {
   h += desc([40, 66, 222, 26], '#11245f', 'Melhore sua base e a plantação, e conserte o foguete do Zuno!');
   h += desc([109, 123, 104, 23], '#1a3157', S.baseLvl < 5 ? `Tanque de O₂: <b>${O2_CAP[S.baseLvl - 1]} → ${O2_CAP[S.baseLvl]}</b>` : `Tanque máximo: <b>${O2_CAP[4]}</b> de O₂`);
   h += desc([110, 215, 102, 26], '#1e3a7a', ['Libera a <b>3ª cúpula</b> e usa menos 💧', 'Libera a <b>4ª cúpula</b> e usa menos 💧', 'Plantas crescem <b>1 dia</b> mais rápido', 'Plantação no <b>nível máximo</b>'][S.farmLvl - 1]);
-  h += desc([110, 316, 100, 27], '#1c3570', nextR ? `Próxima: <b>${nextR.name}</b> (${nextR.game === 'wires' ? 'fios' : 'canos'})` : 'Foguete <b>pronto</b>!');
+  h += desc([110, 316, 100, 27], '#1c3570', nextR ? `Próxima: <b>${nextR.name}</b> (${{ wires: 'fios', memory: 'memória', pipes: 'canos' }[nextR.game]})` : 'Foguete <b>pronto</b>!');
   // base
   h += segs(5, S.baseLvl, 'green', [110, 149, 106, 16]);
   if (S.baseLvl < 5) { const c = scaled(UPG.base.costs[S.baseLvl - 1]); h += `<div class="costbox compact" style="${at([215, 103, 72, 74])}">${costBox(c, ['e', 'o', 's'], 'data-up="base"', canPay(c), true)}</div>`; }
@@ -706,7 +707,9 @@ function startMG(stage, onWin) {
     $('#quit', m).onclick = () => go('home');
   }, { noX: true });
   const win = () => { stopMG(); setTimeout(onWin, 800); };
-  if (stage.game === 'wires') wiresGame(stage.n, win, fail); else pipesGame(stage.n, win, fail);
+  if (stage.game === 'wires') wiresGame(stage.n, win, fail);
+  else if (stage.game === 'memory') memoryGame(stage.n, win, fail);
+  else pipesGame(stage.n, win, fail);
   const quit = $('#mgx'); if (quit) quit.onclick = () => go('home');
 }
 
@@ -850,6 +853,51 @@ function wiresGame(n, onWin, onFail) {
     if (sel && b && b.dataset.side === 'R') tryConnect(b); else { temp = ''; redraw(); }
   });
   startTimer(n > 4 ? 50 : 40, null, onFail);
+  if (S.voice) speak(t);
+}
+
+// ---- jogo da memória: encontre os pares de equipamentos ----
+const MEM_ITEMS = [
+  { k: 'capacete', name: 'Capacete' }, { k: 'chave', name: 'Chave inglesa' }, { k: 'oxigenio', name: 'Tanque de oxigênio' },
+  { k: 'antena', name: 'Antena' }, { k: 'luva', name: 'Luva espacial' }, { k: 'bateria', name: 'Bateria', svg: true }
+];
+function memoryGame(pairs, onWin, onFail) {
+  const items = MEM_ITEMS.slice(0, pairs);
+  const deck = shuffle([...items, ...items].map(it => ({ ...it })));
+  const B = [18, 196, 294, 238], cols = 4, rows = Math.ceil(deck.length / cols), gap = 7, pad = 9;
+  const cw = (B[2] - pad * 2 - gap * (cols - 1)) / cols, ch = Math.min(cw * 0.92, (B[3] - pad * 2 - gap * (rows - 1)) / rows);
+  const top = (B[3] - (ch * rows + gap * (rows - 1))) / 2;
+  const face = it => it.svg
+    ? `<img src="${A('mem_blank.png')}" alt=""><div class="mem-icon">${ART[it.k]()}</div>`
+    : `<img src="${A('mem_' + it.k + '.png')}" alt="${it.name}">`;
+  const t = 'Jogo da memória! Encontre os pares de itens para coletar os equipamentos do conserto. Toque em duas cartas.';
+  layer(`<div class="updesc mem-sub" style="${pos([60, 125, 210, 25])}"><span><b>Jogo da Memória:</b> encontre os pares de itens para coletar os equipamentos!</span></div>
+    <div class="timer-ov" id="timer" style="${pos([150, 166, 64, 22])}"></div>
+    <div class="mem-pairs" id="memPairs" style="${pos([224, 165, 76, 24])}">Pares: <b>0/${pairs}</b></div>
+    <div class="mem-board" style="${pos(B)}">${deck.map((it, i) => `<button class="mem-card" data-i="${i}" aria-label="Carta" style="${pos([pad + (i % cols) * (cw + gap), top + Math.floor(i / cols) * (ch + gap), cw, ch])}">
+      <div class="mem-inner"><div class="mem-face mem-back"><img src="${A('mem_back.png')}" alt=""></div><div class="mem-face mem-front">${face(it)}</div></div></button>`).join('')}</div>
+    <div class="mem-speech" style="${pos([152, 466, 156, 46])}"><span>Encontre todos os pares e receba os equipamentos para consertar o foguete!</span></div>
+    <button class="hot" id="mgx" style="${pos([290, 60, 38, 36])};border-radius:50%" aria-label="Sair"></button>
+    <div class="abs" style="left:8px;top:140px">${sayBtn(t)}</div>`);
+  let open = [], found = 0, busy = false;
+  const cards = $$('.mem-card');
+  cards.forEach(c => c.onclick = () => {
+    if (!mgTimer || busy || c.classList.contains('flip') || c.classList.contains('done')) return;
+    c.classList.add('flip'); open.push(c);
+    if (open.length < 2) return;
+    const [a, b] = open; open = [];
+    const ia = deck[+a.dataset.i], ib = deck[+b.dataset.i];
+    if (ia.k === ib.k) {
+      found++; a.classList.add('done'); b.classList.add('done');
+      $('#memPairs').innerHTML = `Pares: <b>${found}/${pairs}</b>`;
+      toast(`✔ ${ia.name}!`);
+      if (found === pairs) { toast('🧰 Equipamentos coletados!'); onWin(); }
+    } else {
+      busy = true;
+      setTimeout(() => { a.classList.remove('flip'); b.classList.remove('flip'); busy = false; }, 800);
+    }
+  });
+  startTimer(pairs > 5 ? 60 : 45, null, onFail);
   if (S.voice) speak(t);
 }
 

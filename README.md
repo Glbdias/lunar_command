@@ -54,7 +54,7 @@ Para trocar o vídeo, basta substituir esse arquivo.
 - Explorar (−O₂ −Elixir → sucata na mochila) · Voltar para a base (enche O₂; se faltar O₂ na volta, o robô resgata e metade da mochila se perde).
 - Extrair gelo (−Elixir → +Água) · Plantar (−Elixir −Água) · Colher (→ +Elixir para o Zuno).
 - Dormir: +Elixir (mais se houve colheita no dia), enche O₂, avança 1 dia, plantas crescem.
-- Melhorias (como na tela): Base 5 níveis (tanque 100→180), Plantação 4 níveis (+cúpulas, −água, colheitas maiores), Foguete 5 partes (minigames canos/fios alternados). As últimas partes do foguete exigem tanque maior → obriga a melhorar a Base.
+- Melhorias (como na tela): Base 5 níveis (tanque 100→180), Plantação 4 níveis (+cúpulas, −água, colheitas maiores), Foguete 5 partes (minigames: canos, fios, jogo da memória, fios, canos). As últimas partes do foguete exigem tanque maior → obriga a melhorar a Base.
 - Dificuldade pela idade: 7–8 Iniciante, 9–10 Intermediário, 11–12 Avançado.
 - Acessibilidade: todo texto tem botão 🔊 (narração pt-BR pelo navegador) + narração automática do robô.
 - Modo Supervisão (⚙️, protegido por conta de multiplicação): limite diário de tela, idade, narração, reiniciar.

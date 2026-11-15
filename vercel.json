@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/osdr/:id", "destination": "/api/osdr?id=:id" },
+    { "source": "/api/lro/:layer/:z/:row/:col", "destination": "/api/lro?layer=:layer&z=:z&row=:row&col=:col" }
+  ]
+}

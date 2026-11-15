@@ -1,0 +1,6 @@
+# No Vercel o jogo roda como site estático (public/) + funções (api/).
+# O servidor local não deve ir para o deploy: o Vercel tentaria rodá-lo como função e ele quebraria.
+server.js
+iniciar.bat
+cache/
+design/

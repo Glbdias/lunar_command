@@ -2,7 +2,6 @@
   "name": "lunar-command-zuno",
   "version": "1.0.0",
   "description": "ZUNO — pet virtual educativo na Lua com dados reais da NASA (OSDR e LRO/LOLA). NASA Space Apps Challenge.",
-  "main": "server.js",
   "private": true,
   "scripts": {
     "start": "node server.js"

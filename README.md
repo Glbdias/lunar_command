@@ -14,6 +14,13 @@ Abra http://localhost:5173 — ou rode `npm start`, ou dê dois cliques em `inic
 > faz o proxy. Ele também guarda as respostas em `cache/`, então depois do primeiro acesso o jogo funciona offline.
 > Sem internet e sem cache, o jogo usa valores embutidos (extraídos dos mesmos estudos) e mostra "OFFLINE" no painel Dados NASA.
 
+## Deploy no Vercel
+O projeto já vem configurado (`vercel.json`): é só importar o repositório no Vercel, sem mudar nada nas configurações.
+- `public/` é servido como site estático (jogo, arte e vídeo).
+- `api/osdr.js` e `api/lro.js` são funções serverless que fazem o proxy da NASA nos mesmos endereços do servidor local
+  (`/api/osdr/{id}` e `/api/lro/{camada}/{z}/{linha}/{coluna}`); o cache fica na CDN do Vercel.
+- `server.js` é só para rodar no PC e fica fora do deploy (`.vercelignore`).
+
 ## Integração com a NASA
 
 ### NASA OSDR (Open Science Data Repository) — plantação

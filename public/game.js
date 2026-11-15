@@ -676,7 +676,7 @@ function openUpgrades() {
       closeModal();
       startMG(st, () => {
         pay(c); S.rocket++; save();
-        if (S.rocket >= 5) { S.phase = 'end'; save(); current = 'home'; render(); }
+        if (S.rocket >= 5) { S.phase = 'outro'; save(); current = 'home'; render(); }
         else { go('home'); robot(`Parte consertada: <b>${st.name}</b>! Faltam ${5 - S.rocket}. Zuno está cada vez mais perto de casa! 🚀`); }
       });
     };

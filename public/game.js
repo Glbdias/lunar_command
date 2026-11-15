@@ -430,11 +430,13 @@ function hint() {
 }
 
 /* ================= plantação ================= */
+// As 4 cúpulas usam os mesmos elementos (vidro aceso, rótulo e status). As de baixo, quando liberadas,
+// ganham uma base (podbase) cobrindo a placa "PLANTAÇÃO BLOQUEADA" e as listras do desenho original.
 const PODS = [
   { inn: [55, 165, 97, 62], bgd: 'dome_in_l.png', label: [66, 235, 80, 16], status: [55, 253, 97, 47] },
   { inn: [176, 158, 99, 69], bgd: 'dome_in_r.png', label: [186, 235, 84, 16], status: [174, 253, 104, 47] },
-  { inn: [57, 322, 95, 62], bgd: 'dome_in_bl.png', label: [64, 386, 84, 30], small: true },
-  { inn: [178, 322, 95, 62], bgd: 'dome_in_br.png', label: [184, 386, 86, 30], small: true }
+  { inn: [57, 322, 95, 62], bgd: 'dome_in_l.png', label: [66, 388, 80, 16], status: [56, 406, 97, 45], base: [50, 384, 110, 68] },
+  { inn: [178, 322, 95, 62], bgd: 'dome_in_r.png', label: [187, 388, 84, 16], status: [176, 406, 100, 45], base: [170, 384, 112, 68] }
 ];
 const stageScale = p => { if (p.left <= 0) return 1; const f = 1 - p.left / p.total; return f < .34 ? .3 : f < .67 ? .55 : .8; };
 function plantHTML(k, sc) {
@@ -449,17 +451,12 @@ function renderFarm() {
     const ready = p.crop && p.left <= 0;
     const inner = `<div class="dome-in ${ready ? 'ready' : ''}" data-pod="${i}" style="${pos(P.inn)}"><img class="bgd" src="${A(P.bgd)}" alt="">${p.crop ? plantHTML(p.crop, stageScale(p)) : ''}</div>`;
     const name = p.crop ? `${CROPS[p.crop].icon}${CROPS[p.crop].name.toUpperCase()}` : 'VAZIO';
-    if (P.small) {
-      const act = !p.crop ? `<button class="pill-btn green small" data-plant="${i}">+ PLANTAR</button>`
-        : ready ? `<button class="pill-btn yellow small" data-harvest="${i}">COLHER</button>`
-          : `<span>🕐 ${p.left} DIA${p.left > 1 ? 'S' : ''}</span>`;
-      return inner + `<div class="lock-label" style="${pos(P.label)}"><div>${p.crop ? CROPS[p.crop].name.toUpperCase() : ''}</div>${act}</div>`;
-    }
     let st;
     if (!p.crop) st = `<div class="days">VAZIO</div><button class="pill-btn green small" style="width:92%" data-plant="${i}">+ PLANTAR</button>`;
     else if (ready) st = `<div class="ok-pill">✔ PRONTO!</div><button class="img-btn" data-harvest="${i}" aria-label="Colher" style="width:93px;height:28px;background-image:url(${A('btn_colher.png')})"></button>`;
     else st = `<div class="days">🕐 ${p.left} DIA${p.left > 1 ? 'S' : ''}</div><div class="prog"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
-    return inner + `<div class="plabel" style="${pos(P.label)}">${name}</div><div class="pstatus" style="${pos(P.status)}">${st}</div>`;
+    return (P.base ? `<div class="podbase" style="${pos(P.base)}"></div>` : '') + inner +
+      `<div class="plabel" style="${pos(P.label)}">${name}</div><div class="pstatus" style="${pos(P.status)}">${st}</div>`;
   }).join('');
   layer(html + `
     <div class="chip" style="left:8px;top:70px">💧 Água: ${S.water}</div>

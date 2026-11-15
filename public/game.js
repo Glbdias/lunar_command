@@ -301,7 +301,9 @@ function render() {
   const nav = $('#nav');
   nav.innerHTML = cfg && cfg.nav ? ['farm', 'explore', 'upgrades', 'sleep'].map((t, i) =>
     `<button data-nav="${t}" aria-label="${['Alimentar', 'Explorar', 'Melhorias', 'Dormir'][i]}" style="${pos([NAV_X[i][0], cfg.nav[0], NAV_X[i][1], cfg.nav[1]])}"></button>`).join('') : '';
+  setBackdrop(cfg);
   if (S.phase === 'intro') return renderIntro();
+  if (S.phase === 'outro') return renderOutro();
   if (S.phase === 'story') return renderStory();
   if (S.phase === 'age') return renderAge();
   if (S.phase === 'end') return renderEnd();
@@ -319,27 +321,42 @@ const layer = html => { $('#layer').innerHTML = html; };
 
 /* ================= vídeo de abertura (todo jogo novo) ================= */
 const STORY_AFTER_VIDEO = 2; // o vídeo já mostra a base e a nave caindo → o tutorial continua em "Nos destroços..."
-function renderIntro() {
-  layer(`<div class="intro">
-    <video id="introVid" src="${A('intro.mp4')}" playsinline preload="auto"></video>
-    <button class="pill-btn blue small intro-snd hidden" id="introSnd">🔊 ATIVAR SOM</button>
-    <button class="pill-btn yellow intro-skip" id="introSkip">PULAR ⏭</button>
-    <div class="intro-bar"><i id="introProg"></i></div>
-  </div>`);
-  const v = $('#introVid'), snd = $('#introSnd');
+// Player de vídeo em tela cheia (no celular cobre a tela toda; no computador fica dentro do aparelho)
+let vidSrc = null;
+function playVideo(src, onDone) {
+  const box = $('#vidlayer');
+  if (vidSrc === src && !box.classList.contains('hidden')) return; // já está tocando
+  vidSrc = src;
+  box.innerHTML = `<video id="vid" src="${A(src)}" playsinline preload="auto"></video>
+    <button class="pill-btn blue vid-snd hidden" id="vidSnd">🔊 ATIVAR SOM</button>
+    <button class="pill-btn yellow vid-skip" id="vidSkip">PULAR ⏭</button>
+    <div class="vid-bar"><i id="vidProg"></i></div>`;
+  box.classList.remove('hidden'); positionVid();
+  const v = $('#vid'), snd = $('#vidSnd');
+  let done = false;
   const finish = () => {
-    if (S.phase !== 'intro') return;
-    v.pause(); S.phase = 'story'; storyI = STORY_AFTER_VIDEO; save(); render();
+    if (done) return; done = true;
+    v.pause(); box.classList.add('hidden'); box.innerHTML = ''; vidSrc = null; onDone();
   };
   v.onended = finish;
-  v.onerror = finish; // se o vídeo não carregar, segue direto para o tutorial
-  v.ontimeupdate = () => { const p = $('#introProg'); if (p && v.duration) p.style.width = (v.currentTime / v.duration * 100) + '%'; };
-  $('#introSkip').onclick = finish;
-  snd.onclick = () => { v.muted = false; snd.classList.add('hidden'); };
-  v.onclick = () => { if (v.muted) { v.muted = false; snd.classList.add('hidden'); } else if (v.paused) v.play(); };
+  v.onerror = finish; // se o vídeo não carregar, segue o jogo sem travar
+  v.ontimeupdate = () => { const p = $('#vidProg'); if (p && v.duration) p.style.width = (v.currentTime / v.duration * 100) + '%'; };
+  $('#vidSkip').onclick = finish;
+  const unmute = () => { v.muted = false; snd.classList.add('hidden'); if (v.paused) v.play(); };
+  snd.onclick = unmute;
+  v.onclick = () => { if (v.muted || v.paused) unmute(); };
   // navegadores só deixam tocar com som depois de um toque; se bloquear, toca mudo e mostra o botão de som
   v.muted = false;
   v.play().catch(() => { v.muted = true; snd.classList.remove('hidden'); v.play().catch(() => snd.classList.remove('hidden')); });
+}
+function renderIntro() {
+  layer('');
+  playVideo('intro.mp4', () => { if (S.phase !== 'intro') return; S.phase = 'story'; storyI = STORY_AFTER_VIDEO; save(); render(); });
+}
+// vídeo final: depois de consertar o foguete, antes da tela de "Missão cumprida"
+function renderOutro() {
+  layer('');
+  playVideo('ending.mp4', () => { if (S.phase !== 'outro') return; S.phase = 'end'; save(); render(); });
 }
 function newGame() {
   const keep = { parental: S.parental, voice: S.voice };
@@ -956,10 +973,51 @@ setInterval(() => {
 }, 1000);
 
 /* ================= início ================= */
+// Celular: sem moldura, jogo ocupando a largura toda, centralizado; a sobra em cima/embaixo
+// mostra a própria arte da tela desfocada (nada é esticado). Computador: mockup do aparelho.
+const MOBILE_UA = (navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent);
+// Sem mockup: o jogo sempre ocupa a tela (celular ou computador).
+const isMobile = () => true;
+const isPhone = () => MOBILE_UA || matchMedia('(pointer: coarse)').matches;
+function safeInsets() {
+  const p = $('#safe'), cs = getComputedStyle(p);
+  return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+}
 function fit() {
-  const k = Math.min(window.innerWidth / 380, window.innerHeight / 630, 1.6);
-  $('#device').style.transform = `translate(-50%, -50%) scale(${k})`;
+  const vv = window.visualViewport, W = vv ? vv.width : window.innerWidth, H = vv ? vv.height : window.innerHeight;
+  const dev = $('#device'), mobile = isMobile();
+  document.body.classList.toggle('mobile', mobile);
+  if (mobile) {
+    const i = safeInsets(), aw = W - i.l - i.r, ah = H - i.t - i.b;
+    const k = Math.min(aw / 330, ah / 540);
+    dev.style.left = (i.l + aw / 2) + 'px'; dev.style.top = (i.t + ah / 2) + 'px';
+    dev.style.transform = `translate(-50%, -50%) scale(${k})`;
+  } else {
+    const k = Math.min(W / 380, H / 630, 1.6);
+    dev.style.left = '50%'; dev.style.top = '50%';
+    dev.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+  positionVid();
+}
+function positionVid() {
+  const box = $('#vidlayer');
+  if (!box || box.classList.contains('hidden')) return;
+  if (document.body.classList.contains('mobile')) { box.style.cssText = ''; return; }
+  const r = $('#screen').getBoundingClientRect();
+  box.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;border-radius:${26 * r.width / 330}px`;
+}
+function setBackdrop(cfg) {
+  const b = $('#backdrop');
+  b.style.backgroundImage = cfg ? `url(${A(cfg.bg)})` : 'none';
 }
 window.addEventListener('resize', fit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+window.addEventListener('orientationchange', () => setTimeout(fit, 300));
+// no celular, entra em tela cheia no primeiro toque (Android/Chrome; no iPhone use "Adicionar à Tela de Início")
+document.addEventListener('pointerdown', () => {
+  const el = document.documentElement;
+  if (!isPhone() || document.fullscreenElement || !el.requestFullscreen) return;
+  el.requestFullscreen({ navigationUI: 'hide' }).then(() => setTimeout(fit, 200)).catch(() => {});
+}, { passive: true });
 load(); buildCrops(); fit(); render(); checkLimit(); loadOSDR();
 loadTerrain(S.site).then(() => { if (current === 'explore') render(); });

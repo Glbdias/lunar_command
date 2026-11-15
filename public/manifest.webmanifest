@@ -1,0 +1,16 @@
+{
+  "name": "Zuno — Base Lunar",
+  "short_name": "Zuno",
+  "description": "Pet virtual educativo na Lua com dados reais da NASA (OSDR e LRO).",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0c1740",
+  "theme_color": "#0c1740",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

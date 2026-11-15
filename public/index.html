@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Zuno — Base Lunar</title>
+  <meta name="description" content="Zuno: pet virtual educativo na Lua com dados reais da NASA (OSDR e LRO).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lilita+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage">
+    <div class="device" id="device">
+      <svg class="ears" viewBox="0 0 180 46" aria-hidden="true">
+        <path d="M40 46 Q90 2 140 46Z" fill="#9db7f0" stroke="#1f2a5c" stroke-width="3"/>
+        <rect x="22" y="10" width="20" height="44" rx="10" transform="rotate(-38 32 32)" fill="#9db7f0" stroke="#1f2a5c" stroke-width="3"/>
+        <rect x="138" y="10" width="20" height="44" rx="10" transform="rotate(38 148 32)" fill="#9db7f0" stroke="#1f2a5c" stroke-width="3"/>
+      </svg>
+      <div class="phone">
+        <div class="bezel"></div>
+        <div class="screen" id="screen">
+          <img id="bg" class="bg" alt="">
+          <div id="layer" class="layer"></div>
+          <div id="hud" class="hud"></div>
+          <div id="nav" class="navhot"></div>
+          <div id="bubble" class="bubble hidden"></div>
+          <div id="modal" class="modal hidden"></div>
+          <div id="toast" class="toast"></div>
+          <div id="fade" class="fade"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="art.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -622,9 +622,9 @@ function returnToBase() {
 }
 
 /* ================= melhorias (modal original) ================= */
-function costBox(c, keys, btnAttr, can) {
+function costBox(c, keys, btnAttr, can, compact) {
   const ic = { e: 'ic_energy.png', o: 'ic_o2.png', s: 'ic_gear.png' }, have = { e: S.elixir, o: S.o2, s: S.scrap };
-  return `<div class="hd">CUSTO DA<br>MELHORIA</div>${keys.map(k => `<div class="row"><img src="${A(ic[k])}" alt=""><span class="v ${have[k] < c[k] ? 'no' : ''}">${c[k]}</span></div>`).join('')}
+  return `<div class="hd">${compact ? 'CUSTO' : 'CUSTO DA<br>MELHORIA'}</div>${keys.map(k => `<div class="row"><img src="${A(ic[k])}" alt=""><span class="v ${have[k] < c[k] ? 'no' : ''}">${c[k]}</span></div>`).join('')}
     <button class="img-btn" ${btnAttr} ${can ? '' : 'disabled'} style="background-image:url(${A('btn_melhorar.png')})" aria-label="Melhorar"></button>`;
 }
 function openUpgrades() {
@@ -635,7 +635,7 @@ function openUpgrades() {
   let h = `<img src="${A('modal_upg.webp')}" style="width:100%;height:100%;display:block" alt="Melhorias">`;
   // base
   h += segs(5, S.baseLvl, 'green', [110, 149, 106, 16]);
-  if (S.baseLvl < 5) { const c = scaled(UPG.base.costs[S.baseLvl - 1]); h += `<div class="costbox" style="${at([216, 106, 70, 66])};background:#16306f">${costBox(c, ['e', 'o', 's'], 'data-up="base"', canPay(c))}</div>`; }
+  if (S.baseLvl < 5) { const c = scaled(UPG.base.costs[S.baseLvl - 1]); h += `<div class="costbox compact" style="${at([215, 103, 72, 74])}">${costBox(c, ['e', 'o', 's'], 'data-up="base"', canPay(c), true)}</div>`; }
   // plantação
   h += segs(4, S.farmLvl, 'cyan', [110, 246, 86, 16]) + `<div class="lvtxt" style="${at([112, 263, 84, 12])}">Nível ${S.farmLvl} / 4</div>`;
   if (S.farmLvl < 4) { const c = scaled(UPG.farm.costs[S.farmLvl - 1]); h += `<div class="costbox" style="${at([212, 190, 72, 84])}">${costBox(c, ['e', 's'], 'data-up="farm"', canPay(c))}</div>`; }

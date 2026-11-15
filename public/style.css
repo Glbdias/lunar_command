@@ -158,7 +158,13 @@ button.chip:active { transform: translateY(1px); }
 .costbox .row img { width: 13px; height: 15px; object-fit: contain; }
 .costbox .row .v { flex: 1; text-align: right; font-family: 'Lilita One'; font-size: 11.5px; padding: 0 5px; border-radius: 6px; background: linear-gradient(#8ff36a, #3cc23a); -webkit-text-stroke: 2.5px #155a14; paint-order: stroke fill; line-height: 14px; }
 .costbox .row .v.no { background: linear-gradient(#ff8a96, #e8233a); -webkit-text-stroke-color: #5a0f1a; }
-.costbox .img-btn { width: 100%; height: 19px; }
+.costbox .img-btn { width: 100%; height: 19px; flex: none; }
+/* card da Base é mais baixo: versão compacta para caber 3 custos + botão */
+.costbox.compact { padding: 2px 4px 3px; gap: 1px; }
+.costbox.compact .hd { font-size: 8px; }
+.costbox.compact .row .v { font-size: 10px; line-height: 12px; }
+.costbox.compact .row img { width: 11px; height: 12px; }
+.costbox.compact .img-btn { height: 17px; }
 .maxbadge { position: absolute; background: url(assets/badge_maximo.png) center/100% 100% no-repeat; }
 
 /* ---------- minigames ---------- */

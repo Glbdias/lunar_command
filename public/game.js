@@ -83,71 +83,101 @@ const canPay = c => S.elixir >= c.e && S.o2 >= c.o && S.scrap >= c.s;
 const pay = c => { S.elixir -= c.e; S.o2 -= c.o; S.scrap -= c.s; };
 
 /* ================= NASA OSDR (plantação) ================= */
-const OSDR_FALLBACK = {
-  status: 'off', radishKg: 8, lettuceKg: 56, cucumberKg: 67, totalKg: 268, seasonDays: 286,
-  photoperiod: 17, light: 330, radishLight: 600, radishDays: 14, lettuceDays: 18, cucumberSpread: true,
-  title895: 'Biomass Production of the EDEN ISS Space Greenhouse in Antarctica During the 2018 Experiment Phase',
-  title883: 'Analysis of Vegetable Seedlings Grown in Contact with Apollo 14 Lunar Surface Fines'
-};
-const NASA = { osdr: { ...OSDR_FALLBACK, status: 'load' }, lro: { status: 'load' } };
-const CUCUMBER_DAYS_REF = 42; // estimativa (não consta nos estudos usados)
+// Duas coisas separadas de propósito:
+//  • CIÊNCIA (NASA OSDR OSD-895): o que aconteceu na estufa EDEN ISS, na Antártida (Terra).
+//    Vem de /api/osd895 (ZIP ISA lido no servidor, com cache) — nada de número fixo aqui.
+//  • JOGO (balanceamento): dias de jogo, água e energia. São escolhas de jogabilidade, NÃO medições.
+const NASA = { osdr: { status: 'load', records: [], source: null }, lro: { status: 'load' } };
+const OSD895_LS = 'zuno-osd895';
 
-async function apiJSON(id) {
-  const r = await fetch(IS_FILE ? `https://osdr.nasa.gov/osdr/data/osd/meta/${id}` : `/api/osdr/${id}`);
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return { json: await r.json(), src: r.headers.get('X-Data-Source') || 'live' };
-}
 async function loadOSDR() {
   try {
-    const [a, b] = await Promise.all([apiJSON(895), apiJSON(883)]);
-    const study = j => Object.values(j.study)[0].studies[0];
-    const s895 = study(a.json), s883 = study(b.json);
-    const num = (re, txt, def) => { const m = String(txt).match(re); return m ? +m[1] : def; };
-    const d = s895.description || '';
-    const p895 = (s895.protocols || []).map(p => p.description).join(' ');
-    const p883 = (s883.protocols || []).map(p => p.description).join(' ');
-    const F = OSDR_FALLBACK;
-    NASA.osdr = {
-      status: a.src === 'cache' || b.src === 'cache' ? 'cache' : 'live',
-      title895: s895.title, title883: s883.title,
-      cucumberKg: num(/cucumbers?\s*\((\d+)\s*kg\)/i, d, F.cucumberKg),
-      lettuceKg: num(/lettuces?\s*\((\d+)\s*kg\)/i, d, F.lettuceKg),
-      radishKg: num(/radish(?:es)?\s*\((\d+)\s*kg\)/i, d, F.radishKg),
-      totalKg: num(/more than\s*(\d+)\s*kg/i, d, F.totalKg),
-      photoperiod: num(/photoperiod was\s*(\d+)\s*h/i, d, F.photoperiod),
-      light: num(/(\d+)\s*micromole/i, d, F.light),
-      radishLight: num(/(\d+)\s*micromole per square meter per second\s*for radish/i, p895, F.radishLight),
-      seasonDays: num(/;\s*(\d+)\s*days\)/i, p895, F.seasonDays),
-      cucumberSpread: /spread harvest[^.]*cucumber/i.test(p895) || F.cucumberSpread,
-      radishDays: num(/radish seedlings were collected at\s*(\d+)\s*days/i, p883, F.radishDays),
-      lettuceDays: num(/lettuce at\s*(\d+)\s*days/i, p883, F.lettuceDays)
-    };
+    const r = await fetch('/api/osd895');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!Array.isArray(data.records) || !data.records.length) throw new Error('sem registros');
+    NASA.osdr = { status: r.headers.get('X-Data-Source') === 'cache' ? 'cache' : 'live', records: data.records, source: data.source };
+    try { localStorage.setItem(OSD895_LS, JSON.stringify(data)); } catch (e) { /* sem storage */ }
   } catch (e) {
-    console.warn('OSDR indisponível, usando dados embutidos:', e);
-    NASA.osdr = { ...OSDR_FALLBACK, status: 'off' };
+    // falha de rede: usa a última cópia baixada neste aparelho (com data e origem); se não houver, fica sem dados
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(OSD895_LS)); } catch (er) { /* ignore */ }
+    NASA.osdr = saved && saved.records ? { status: 'cache', records: saved.records, source: saved.source } : { status: 'off', records: [], source: null };
+    console.warn('OSD-895 indisponível:', e);
   }
   buildCrops();
   if (current === 'farm') render();
 }
+
+// Balanceamento do jogo (independente da ciência). Valores iguais aos que o jogo já usava.
+const GAME = {
+  alface: { days: 3, water: 2, elixir: 30 },
+  pepino: { days: 6, water: 3, elixir: 33, harvests: 3 },
+  rabanete: { days: 2, water: 1, elixir: 13 }
+};
+// Qual registro do OSD-895 representa cada alimento do jogo (Sample Name exato do estudo)
+const CROP_SAMPLE = {
+  alface: 'Lactuca_sativa_Lettuce_Waldmanns_Green',
+  pepino: 'Cucumis_sativus_FruitCrop_Cucumber_Picowell',
+  rabanete: 'Raphanus_sativus_sativus_TuberCrop_Radish_Raxe'
+};
 let CROPS = {};
 function buildCrops() {
-  const o = NASA.osdr;
+  const rec = k => NASA.osdr.records.find(r => r.sampleName === CROP_SAMPLE[k]) || null;
   CROPS = {
-    alface: { name: 'Alface', sci: 'Lactuca sativa', realDays: o.lettuceDays, kg: o.lettuceKg, water: 2, regrow: false, srcDays: 'OSD-883', srcKg: 'OSD-895',
-      img: 'plant_alface.png', icon: `<img src="${A('veg_alface.png')}" alt="">`,
-      fact: `Plantada com solo da Lua trazido pela Apollo 14, a alface foi colhida em apenas <b>${o.lettuceDays} dias!</b>` },
-    pepino: { name: 'Pepino', sci: 'Cucumis sativus', realDays: CUCUMBER_DAYS_REF, kg: o.cucumberKg, water: 3, regrow: o.cucumberSpread, harvests: 3, srcDays: 'estimativa', srcKg: 'OSD-895',
-      img: 'plant_pepino.png', icon: `<img src="${A('ic_pepino.png')}" alt="">`,
-      fact: `Na estufa espacial EDEN ISS, os cientistas colheram <b>${o.cucumberKg} kg</b> de pepino em uma temporada!` },
-    rabanete: { name: 'Rabanete', sci: 'Raphanus sativus', realDays: o.radishDays, kg: o.radishKg, water: 1, regrow: false, srcDays: 'OSD-883', srcKg: 'OSD-895',
-      svg: true, icon: ART.rabanete(),
-      fact: `Plantado com solo da Lua trazido pela Apollo 14, o rabanete foi colhido em apenas <b>${o.radishDays} dias!</b>` }
+    alface: { name: 'Alface', sci: 'Lactuca sativa', variety: 'Waldmanns Green', art: 'A', noun: 'alface', ready: 'pronta', plant: 'O pé de alface',
+      img: 'plant_alface.png', icon: `<img src="${A('veg_alface.png')}" alt="">`, sci895: rec('alface') },
+    pepino: { name: 'Pepino', sci: 'Cucumis sativus', variety: 'Picowell', art: 'O', noun: 'pepino', ready: 'pronto', plant: 'O pé de pepino',
+      img: 'plant_pepino.png', icon: `<img src="${A('ic_pepino.png')}" alt="">`, sci895: rec('pepino') },
+    rabanete: { name: 'Rabanete', sci: 'Raphanus sativus', variety: 'Raxe', art: 'O', noun: 'rabanete', ready: 'pronto', plant: 'O pé de rabanete',
+      svg: true, icon: ART.rabanete(), sci895: rec('rabanete') }
   };
+  Object.keys(CROPS).forEach(k => { CROPS[k].regrow = !!GAME[k].harvests; CROPS[k].harvests = GAME[k].harvests || 1; });
 }
-const gameDays = c => Math.max(1, Math.ceil(CROPS[c].realDays / 7 * D().grow) - (S.farmLvl >= 4 ? 1 : 0));
+
+/* ---- textos para crianças a partir do OSD-895 (arredonda só na hora de mostrar) ---- */
+const NO_DATA = 'Ainda não temos esse dado.';
+const AREAS = [1, 2, 3];                          // lado do canteiro em metros (1×1, 2×2, 3×3)
+const areaSide = () => (AREAS.includes(S.areaSide) ? S.areaSide : 1);
+const fmtKg = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('pt-BR');
+const fmtDays = v => Math.round(v).toLocaleString('pt-BR');
+const metros = n => `${n} ${n === 1 ? 'metro' : 'metros'}`;
+// produção estimada (kg) = produção média observada (kg/m²) × área (m²); valida área e unidade
+function estimateKg(rec, areaM2) {
+  const m = rec && rec.meanEdibleFreshweight;
+  if (!m || m.value == null || m.unit !== 'kilogram per square meter') return null;
+  if (!(areaM2 > 0) || !Number.isFinite(areaM2)) return null;
+  const r = rec.edibleFreshweightRange || {};
+  return { kg: m.value * areaM2, min: r.min != null ? r.min * areaM2 : null, max: r.max != null ? r.max * areaM2 : null };
+}
+// Frase principal: curta, sem "biomassa", "produtividade", "kg/m²" ou "ciclo avaliado"
+function kidText(k, short) {
+  const c = CROPS[k], rec = c && c.sci895;
+  if (!rec) return NO_DATA;
+  const side = areaSide(), est = estimateKg(rec, side * side);
+  const age = rec.age && rec.age.value != null && rec.age.unit === 'day' ? rec.age.value : null;
+  let t;
+  if (rec.harvestType === 'spread') {
+    // colheitas repetidas: a idade é a duração total do cultivo, não o tempo até a 1ª colheita
+    t = age != null ? `${c.plant} cresceu por <b>${fmtDays(age)} dias</b> e deu frutos várias vezes. O estudo não diz quando apareceu o primeiro ${c.noun}.`
+      : `${c.plant} deu frutos várias vezes. ${NO_DATA}`;
+  } else {
+    t = age != null ? `${c.art} ${c.noun} ficou ${c.ready} para colher em cerca de <b>${fmtDays(age)} dias</b>.`
+      : `Quanto tempo ${c.art === 'A' ? 'a' : 'o'} ${c.noun} levou? ${NO_DATA}`;
+  }
+  if (short && rec.harvestType === 'spread') return t; // versão curta (balão da colheita)
+  if (!est) return t + ` Quanto foi colhido? ${NO_DATA}`;
+  return side === 1
+    ? `${t} Em um espaço de 1 metro por 1 metro, foram colhidos cerca de <b>${fmtKg(est.kg)} kg</b>.`
+    : `${t} Num espaço de ${metros(side)} por ${metros(side)}, a colheita estimada é de cerca de <b>${fmtKg(est.kg)} kg</b>.`;
+}
+const SOURCE_LINE = 'Fonte: NASA OSDR OSD-895 · estufa na Antártida (Terra)';
+
+// ---- regras de jogo (só balanceamento; não são medições da planta) ----
+const gameDays = c => Math.max(1, Math.ceil(GAME[c].days * D().grow) - (S.farmLvl >= 4 ? 1 : 0));
 const regrowDays = () => Math.max(1, Math.round(2 * D().grow));
-const elixirValue = c => Math.round((10 + CROPS[c].kg * 0.35) * (1 + .1 * (S.farmLvl - 1)));
-const waterNeed = c => Math.max(1, CROPS[c].water - (S.farmLvl - 1));
+const elixirValue = c => Math.round(GAME[c].elixir * (1 + .1 * (S.farmLvl - 1)));
+const waterNeed = c => Math.max(1, GAME[c].water - (S.farmLvl - 1));
 
 /* ================= LRO / LOLA (topografia) ================= */
 const SITES = {
@@ -468,7 +498,8 @@ function renderFarm() {
     let st;
     if (!p.crop) st = `<button class="pill-btn green plantar" data-plant="${i}">+ PLANTAR</button>`;
     else if (ready) st = `<div class="ok-pill">✔ PRONTO!</div><button class="img-btn colher" data-harvest="${i}" aria-label="Colher" style="background-image:url(${A('btn_colher.png')})"></button>`;
-    else st = `<div class="days">🕐 ${p.left} DIA${p.left > 1 ? 'S' : ''}</div><div class="prog"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
+    // barra = contagem de dias DE JOGO (não é medição do crescimento real da planta)
+    else st = `<div class="days" title="Dias de jogo (não é medição do estudo)">🎮 ${p.left} DIA${p.left > 1 ? 'S' : ''}</div><div class="prog" title="Estimativa do jogo"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
     return `<div class="pod" style="${pos(r)}"><img class="podimg" src="${A('pod.png')}" alt="">
       <div class="pod-in ${ready ? 'ready' : ''}" data-pod="${i}">${p.crop ? plantHTML(p.crop, stageScale(p)) : ''}</div>
       <div class="plabel">${name}</div><div class="pstatus">${st}</div></div>`;
@@ -492,15 +523,18 @@ function collectWater() {
 function choosePlant(i) {
   const cards = Object.keys(CROPS).map(k => {
     const c = CROPS[k], w = waterNeed(k), ok = S.water >= w && S.elixir >= 3;
-    const desc = `${c.name}: no jogo leva ${gameDays(k)} dias, usa ${w} de água e dá ${elixirValue(k)} de energia.`;
+    const sci = kidText(k);
     return `<div class="cropcard"><div class="pic">${c.svg ? ART.rabanete() : `<img src="${A(c.img)}" alt="">`}</div>
-      <div class="info"><h3>${c.name} ${sayBtn(desc)}</h3><i style="opacity:.8">${c.sci}</i><br>
-        <span class="nasa-tag">${c.srcDays}</span>${c.srcDays === 'estimativa' ? '~' : ''}${c.realDays} dias até colher<br>
-        <span class="nasa-tag">${c.srcKg}</span>EDEN ISS: ${c.kg} kg${c.regrow ? ' · colhe 3×' : ''}<br>
-        🎮 <b>${gameDays(k)} dia(s)</b> · 💧${w} · +${elixirValue(k)}⚡</div>
-      <button class="pill-btn green small" data-pick="${k}" ${ok ? '' : 'disabled'}>PLANTAR</button></div>`;
+      <div class="info"><h3>${c.name} ${sayBtn(`${c.name}. Na estufa da Antártida: ${sci}`)}</h3>
+        <div class="sci-txt">🔬 ${sci}</div>
+        <div class="crop-foot"><span class="game-txt">🎮 No jogo: <b>${gameDays(k)} dia(s)</b> · 💧${w} · +${elixirValue(k)}⚡</span>
+        <button class="pill-btn green small" data-pick="${k}" ${ok ? '' : 'disabled'}>PLANTAR</button></div></div></div>`;
   }).join('');
-  modal('O QUE PLANTAR?', `<p style="font-size:12px;text-align:center">Plantar custa 3⚡ + água. Você tem 💧${S.water}.</p>${cards}`, m => {
+  const sizes = AREAS.map(n => `<button class="area-btn ${areaSide() === n ? 'on' : ''}" data-area="${n}">${n}×${n} m</button>`).join('');
+  modal('O QUE PLANTAR?', `<p style="font-size:12px;text-align:center">Plantar custa 3⚡ + água. Você tem 💧${S.water}.</p>
+    <div class="area-row"><span>Tamanho do canteiro:</span>${sizes}</div>${cards}
+    <p class="src-line">${SOURCE_LINE}. Os dias de jogo são do jogo, não do estudo.</p>`, m => {
+    $$('[data-area]', m).forEach(b => b.onclick = () => { S.areaSide = +b.dataset.area; save(); choosePlant(i); });
     $$('[data-pick]', m).forEach(b => b.onclick = () => {
       const k = b.dataset.pick, p = S.plots[i];
       S.water -= waterNeed(k); S.elixir -= 3;
@@ -518,12 +552,13 @@ function harvest(i) {
   else Object.assign(p, { crop: null, left: 0, total: 0, harvests: 0 });
   save(); render();
   toast(`⚡ +${gain} de energia para o Zuno!`);
-  const txt = c.fact;
+  const txt = kidText(k, true);
+  const small = strip(txt).length > 115;
   if (extra) setTimeout(() => robot(extra.trim()), 300);
   // popup original "COLHEITA REALIZADA!" com o texto e o vegetal trocados
   const vegOverlay = k === 'alface' ? '' : `<div class="abs" style="${pos([196, 136, 82, 62])};background:radial-gradient(circle,#2f74e0 40%,#2563d8 70%,rgba(37,99,216,0));display:grid;place-items:center">${c.svg ? `<div style="width:54px">${ART.rabanete()}</div>` : `<img src="${A(c.img)}" style="width:80px" alt="">`}</div>`;
   modalRaw(`<div class="popimg" style="${pos([6, 253, 300, 207])}"><img src="${A('pop_harvest.webp')}" alt="Colheita realizada">
-      <div class="abs speech" style="${pos([125, 64, 146, 88])};border:0;background:#eef4ff;font-size:12.5px;line-height:1.35;padding:4px 6px;border-radius:12px;overflow:hidden;display:flex;align-items:center"><span>${txt}</span></div>
+      <div class="abs speech" style="${pos([125, 62, 148, 92])};border:0;background:#eef4ff;font-size:${small ? 10 : 11.5}px;line-height:1.3;padding:3px 6px;border-radius:12px;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;justify-content:safe center"><span>${txt}</span><span class="src-mini">Fonte: NASA OSDR OSD-895 · Antártida</span></div>
       ${vegOverlay}
       <button class="hot" data-close style="${pos([262, 6, 36, 36])}" aria-label="Fechar"></button>
       <div class="abs" style="left:8px;top:170px">${sayBtn(txt)}</div></div>`, m => m.onclick = e => { if (e.target === m) closeModal(); });
@@ -947,16 +982,29 @@ function renderEnd() {
 const statusTag = s => ({ live: '<span class="status live">AO VIVO</span>', cache: '<span class="status cache">CACHE</span>', off: '<span class="status off">OFFLINE</span>', load: '<span class="status load">carregando</span>' }[s] || '');
 function openNasa() {
   const o = NASA.osdr, s = SITES[S.site];
-  const t = 'Estes são os dados reais da NASA usados no jogo: estudos de plantas da OSDR e o relevo da Lua medido pela sonda LRO.';
+  const t = 'Estes são os dados reais da NASA usados no jogo: o estudo de plantas OSD-895 e o relevo da Lua medido pela sonda LRO.';
+  const src = o.source;
+  const val = (f, u) => f && f.value != null ? `${f.value} ${esc(f.unit || u || '')}` : `<i>${NO_DATA}</i>`;
+  const rng = f => f && f.min != null ? `${f.min}–${f.max} ${esc(f.unit || '')}` : `<i>${esc((f && f.missing) || NO_DATA)}</i>`;
+  const side = areaSide();
+  const crops = Object.keys(CROPS).map(k => {
+    const c = CROPS[k], r = c.sci895, est = estimateKg(r, side * side);
+    if (!r) return `<tr><td>${c.name}</td><td><i>${NO_DATA}</i></td></tr>`;
+    return `<tr><td>${c.name}<br><small>${esc(r.sampleName)}</small></td><td>
+      Colheita: <b>${r.harvestType === 'spread' ? 'repetida (spread)' : 'única (batch)'}</b> · ciclos avaliados: ${r.cyclesEvaluated ?? '—'}<br>
+      Age At Sample Harvest: <b>${val(r.age)}</b>${r.harvestType === 'spread' ? ' <small>(duração total do cultivo, não o tempo até a 1ª colheita)</small>' : ''}<br>
+      Mean Edible Freshweight: <b>${val(r.meanEdibleFreshweight)}</b><br>
+      Edible Freshweight Range: ${rng(r.edibleFreshweightRange)}<br>
+      Estimativa ${side}×${side} m (${side * side} m²): ${est ? `<b>${est.kg.toFixed(2)} kg</b>${est.min != null ? ` (faixa ${est.min.toFixed(2)}–${est.max.toFixed(2)} kg)` : ''}` : `<i>${NO_DATA}</i>`}</td></tr>`;
+  }).join('');
   modal('DADOS DA NASA', `<div class="say-row"><p style="font-size:12px">${t}</p>${sayBtn(t)}</div>
-    <h3 class="sec">🌱 NASA OSDR ${statusTag(o.status)}</h3>
-    <table class="dtab">
-      <tr><td><a href="https://osdr.nasa.gov/bio/repo/data/studies/OSD-895" target="_blank" rel="noopener">OSD-895</a></td><td>${esc(o.title895)}</td></tr>
-      <tr><td>Pepino / Alface / Rabanete</td><td>${o.cucumberKg} / ${o.lettuceKg} / ${o.radishKg} kg (total &gt;${o.totalKg} kg em ${o.seasonDays} dias)</td></tr>
-      <tr><td>Luz / fotoperíodo</td><td>${o.light} µmol/m²/s (rabanete ${o.radishLight}) · ${o.photoperiod} h/dia</td></tr>
-      <tr><td><a href="https://osdr.nasa.gov/bio/repo/data/studies/OSD-883" target="_blank" rel="noopener">OSD-883</a></td><td>${esc(o.title883)}</td></tr>
-      <tr><td>Dias até coleta</td><td>Alface ${o.lettuceDays} · Rabanete ${o.radishDays}</td></tr>
-      <tr><td>No jogo</td><td>dias = dias reais ÷ 7 (× nível) · elixir = 10 + kg × 0,35 · pepino colhe 3× (spread harvest)</td></tr>
+    <h3 class="sec">🌱 NASA OSDR OSD-895 ${statusTag(o.status)}</h3>
+    <p style="font-size:10.5px;margin:2px 0 4px">Estufa EDEN ISS, na <b>Antártida (Terra)</b>, 2018. Não são plantas cultivadas na Lua.</p>
+    <table class="dtab">${crops}
+      <tr><td>Fórmula</td><td>produção estimada (kg) = Mean Edible Freshweight (kg/m²) × área plantada (m²)</td></tr>
+      <tr><td>Campos usados</td><td>s_OSD-895.txt: Characteristics[cultivar], Parameter Value[Harvest Type] · a_OSD-895_*.txt: Parameter Value[Age At Sample Harvest], [Mean Edible Freshweight], [Edible Freshweight Range], unidos por Sample Name</td></tr>
+      <tr><td>Arquivo</td><td>${src ? `<a href="${esc(src.zipUrl)}" target="_blank" rel="noopener">${esc(src.zipFile)}</a><br><small>lista: ${esc(src.filesApi)}<br>obtido em ${new Date(src.fetchedAt).toLocaleString('pt-BR')}</small>` : `<i>${NO_DATA}</i>`}</td></tr>
+      <tr><td>No jogo</td><td>dias de jogo, água e energia são <b>balanceamento do jogo</b>, separados do estudo. A barra da cúpula conta dias de jogo, não mede a planta.</td></tr>
     </table>
     <h3 class="sec">🌕 LRO / LOLA ${statusTag(NASA.lro.status)}</h3>
     <table class="dtab">

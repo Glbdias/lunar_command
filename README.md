@@ -66,7 +66,10 @@ Para trocar o vídeo, basta substituir esse arquivo.
 - Dificuldade pela idade: 7–8 Iniciante, 9–10 Intermediário, 11–12 Avançado.
 - Acessibilidade: todo texto tem botão 🔊 (narração pelo navegador, no idioma escolhido) + narração automática do robô.
 - Idioma: português por padrão; o botão 🌐 English (história, idade e tela inicial) ou a Área dos pais troca para inglês.
-  A escolha fica salva no aparelho (`zuno-lang`) e vale também para jogos novos. Textos desenhados na arte das telas continuam em português.
+  A escolha fica salva no aparelho (`zuno-lang`) e vale também para jogos novos.
+  Em inglês, o jogo usa as versões `*_en` da arte (`bg_*_en.webp`, `modal_upg_en.webp`, `pop_*_en.webp`, botões e selo),
+  que são as mesmas imagens com o texto em português apagado; o texto em inglês é escrito por cima (`ART_LABELS` em `game.js`).
+  Só os vídeos continuam em português.
 - Modo Supervisão (⚙️, protegido por conta de multiplicação): limite diário de tela, idade, narração, reiniciar.
 
 ## Arquivos

@@ -33,6 +33,35 @@ function setLang(l) {
   clearRobot(); // o balão do robô estava no idioma anterior
   buildCrops(); render();
 }
+// Arte em inglês: versões *_en das imagens, com o texto em português apagado (preenchido com as cores
+// em volta). O texto em inglês é escrito por cima, em HTML (ART_LABELS), na mesma fonte do jogo.
+const ART_EN = new Set(['bg_home.webp', 'bg_farm.webp', 'bg_explore.webp', 'bg_sleep.webp', 'bg_pipes.webp', 'bg_wires.webp',
+  'modal_upg.webp', 'pop_harvest.webp', 'pop_search.webp', 'btn_colher.png', 'btn_melhorar.png', 'badge_maximo.png']);
+const AL = n => (EN() && ART_EN.has(n) ? n.replace(/(\.\w+)$/, '_en$1') : n);
+// [centro x, centro y, texto, tamanho da fonte, classe extra, largura] em coordenadas da arte
+const HUD_EN = (y, f = 12.5, x = [67, 176, 284]) => [[x[0], y, 'ENERGY', f], [x[1], y, 'OXYGEN', f], [x[2], y, 'SCRAP', f]];
+const NAV_EN = (y, f = 12) => [[46, y, 'FEED', f], [125, y, 'EXPLORE', f], [204, y, 'UPGRADES', f], [281, y, 'SLEEP', f]];
+const ART_LABELS = {
+  home: [...HUD_EN(30), ...NAV_EN(511)],
+  farm: [...HUD_EN(24, 12.5, [66, 175, 281]), [166, 107, 'FARM', 25], ...NAV_EN(512)],
+  explore: [...HUD_EN(22, 10.5, [71, 172, 270]), [180, 75, 'EXPLORATION', 19],
+    [164, 113, 'Explore the Moon and collect scrap to upgrade your base!', 10.5, 't', 150], ...NAV_EN(505, 11.5)],
+  sleep: [...HUD_EN(35, 12, [75, 176, 282]), [164, 122, 'SLEEP', 24], [164, 359, 'Resting restores your energy and gets you ready for more!', 12, 't', 205],
+    [188, 411, 'SLEEP', 21], ...NAV_EN(501, 11.5)],
+  pipes: [...HUD_EN(23, 12, [69, 176, 287]), [173, 95, 'PIPES<br>MINIGAME', 16.5], [164, 149, 'Connect the pipes and bring the water to the reservoir!', 11.5, 't', 215],
+    [184, 486, 'Tap the pipes to turn them!', 13.5, 't', 200]],
+  wires: [...HUD_EN(23, 11.5, [74, 176, 274]), [187, 87, 'ROCKET<br>REPAIR', 16.5], [157, 135, 'Connect the wires with the same symbol to restart the rocket!', 12, 't', 215],
+    [232, 488, 'Sort the wires and connect each pair of matching symbols!', 11.5, 't dk', 145]],
+  memory: [...HUD_EN(23, 11.5, [74, 176, 274]), [187, 87, 'ROCKET<br>REPAIR', 16.5]] // legenda e balão já são do jogo da memória
+};
+const LOCK_EN = [[102, 398], [223, 398]]; // "PLANTAÇÃO BLOQUEADA" das cúpulas de baixo
+const artLabel = ([x, y, txt, f, cls = '', w]) => `<div class="al ${cls}" style="left:${x}px;top:${y}px;font-size:${f}px${w ? `;width:${w}px` : ''}">${txt}</div>`;
+function artLabels(screen) {
+  if (!EN()) return '';
+  let h = (ART_LABELS[screen] || []).map(artLabel).join('');
+  if (screen === 'farm') h += LOCK_EN.map(([x, y]) => artLabel([x, y, 'FARM<br>LOCKED', 11.5])).join('');
+  return h;
+}
 // botão que troca o idioma: mostra o idioma para o qual vai trocar
 const langBtn = (style = '') => `<button class="chip lang-btn" data-lang="${EN() ? 'pt' : 'en'}" style="${style}" aria-label="${tr('Idioma', 'Language')}">🌐 ${EN() ? 'Português' : 'English'}</button>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-lang]'); if (b) { e.stopPropagation(); setLang(b.dataset.lang); } }, true);
@@ -372,7 +401,8 @@ function render() {
   const play = S.phase === 'play';
   const cfg = play ? SCREENS[curBg()] : null;
   const bg = $('#bg');
-  if (cfg) { if (!bg.src.endsWith(cfg.bg)) bg.src = A(cfg.bg); bg.classList.remove('hidden'); } else bg.classList.add('hidden');
+  if (cfg) { const src = AL(cfg.bg); if (!bg.src.endsWith(src)) bg.src = A(src); bg.classList.remove('hidden'); } else bg.classList.add('hidden');
+  $('#artlab').innerHTML = cfg ? artLabels(curBg()) : '';
   hud();
   const nav = $('#nav');
   nav.innerHTML = cfg && cfg.nav ? ['farm', 'explore', 'upgrades', 'sleep'].map((t, i) =>
@@ -548,7 +578,7 @@ function renderFarm() {
     const name = p.crop ? `${CROPS[p.crop].icon}${CROPS[p.crop].name.toUpperCase()}` : tr('VAZIO', 'EMPTY');
     let st;
     if (!p.crop) st = `<button class="pill-btn green plantar" data-plant="${i}">${tr('+ PLANTAR', '+ PLANT')}</button>`;
-    else if (ready) st = `<div class="ok-pill">${tr('✔ PRONTO!', '✔ READY!')}</div><button class="img-btn colher" data-harvest="${i}" aria-label="${tr('Colher', 'Harvest')}" style="background-image:url(${A('btn_colher.png')})"></button>`;
+    else if (ready) st = `<div class="ok-pill">${tr('✔ PRONTO!', '✔ READY!')}</div><button class="img-btn colher" data-harvest="${i}" aria-label="${tr('Colher', 'Harvest')}" style="background-image:url(${A(AL('btn_colher.png'))})">${EN() ? '<span class="al btn-al">HARVEST</span>' : ''}</button>`;
     // barra = contagem de dias DE JOGO (não é medição do crescimento real da planta)
     else st = `<div class="days" title="${tr('Dias de jogo (não é medição do estudo)', 'Game days (not a study measurement)')}">🎮 ${p.left} ${p.left > 1 ? tr('DIAS', 'DAYS') : tr('DIA', 'DAY')}</div><div class="prog" title="${tr('Estimativa do jogo', 'Game estimate')}"><i style="width:${Math.round((1 - p.left / p.total) * 100)}%"></i></div>`;
     return `<div class="pod" style="${pos(r)}"><img class="podimg" src="${A('pod.png')}" alt="">
@@ -609,7 +639,7 @@ function harvest(i) {
   if (extra) setTimeout(() => robot(extra.trim()), 300);
   // popup original "COLHEITA REALIZADA!" com o texto e o vegetal trocados
   const vegOverlay = k === 'alface' ? '' : `<div class="abs" style="${pos([196, 136, 82, 62])};background:radial-gradient(circle,#2f74e0 40%,#2563d8 70%,rgba(37,99,216,0));display:grid;place-items:center">${c.svg ? `<div style="width:54px">${ART.rabanete()}</div>` : `<img src="${A(c.img)}" style="width:80px" alt="">`}</div>`;
-  modalRaw(`<div class="popimg" style="${pos([6, 253, 300, 207])}"><img src="${A('pop_harvest.webp')}" alt="${tr('Colheita realizada', 'Harvest done')}">
+  modalRaw(`<div class="popimg" style="${pos([6, 253, 300, 207])}"><img src="${A(AL('pop_harvest.webp'))}" alt="${tr('Colheita realizada', 'Harvest done')}">${EN() ? artLabel([150, 33, 'HARVEST DONE!', 19]) : ''}
       <div class="abs speech" style="${pos([125, 62, 148, 92])};border:0;background:#eef4ff;font-size:${small ? 10 : 11.5}px;line-height:1.3;padding:3px 6px;border-radius:12px;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;justify-content:safe center"><span>${txt}</span><span class="src-mini">${tr('Fonte: NASA OSDR OSD-895 · Antártida', 'Source: NASA OSDR OSD-895 · Antarctica')}</span></div>
       ${vegOverlay}
       <button class="hot" data-close style="${pos([262, 6, 36, 36])}" aria-label="${tr('Fechar', 'Close')}"></button>
@@ -704,7 +734,7 @@ function explore(t) {
   save(); hud(); drawPins(t); drawPanel(t);
   const fact = LUNAR_FACTS[S.stats.explored % LUNAR_FACTS.length][EN() ? 1 : 0];
   // popup original "BUSCA REALIZADA!" com número e texto dinâmicos
-  modalRaw(`<div class="popimg" style="${pos(PANEL)}"><img src="${A('pop_search.webp')}" alt="${tr('Busca realizada', 'Search done')}">
+  modalRaw(`<div class="popimg" style="${pos(PANEL)}"><img src="${A(AL('pop_search.webp'))}" alt="${tr('Busca realizada', 'Search done')}">${EN() ? artLabel([150, 26, 'SEARCH DONE!', 18]) : ''}
       <div class="abs lil stroke" style="${pos([210, 101, 54, 30])};display:grid;place-items:center;font-size:24px;background:linear-gradient(#5fe04a,#28a82c);border-radius:14px">+${got}</div>
       <div class="abs speech" style="${pos([24, 140, 246, 74])};border:0;background:#eef4ff;font-size:11px;line-height:1.35;padding:3px 8px;text-align:center;display:flex;align-items:center;justify-content:center"><span>${fact}</span></div>
       <button class="hot" data-close style="${pos([254, 6, 38, 38])}" aria-label="${tr('Fechar', 'Close')}"></button>
@@ -726,14 +756,15 @@ function returnToBase() {
 function costBox(c, keys, btnAttr, can, compact) {
   const ic = { e: 'ic_energy.png', o: 'ic_o2.png', s: 'ic_gear.png' }, have = { e: S.elixir, o: S.o2, s: S.scrap };
   return `<div class="hd">${compact ? tr('CUSTO', 'COST') : tr('CUSTO DA<br>MELHORIA', 'UPGRADE<br>COST')}</div>${keys.map(k => `<div class="row"><img src="${A(ic[k])}" alt=""><span class="v ${have[k] < c[k] ? 'no' : ''}">${c[k]}</span></div>`).join('')}
-    <button class="img-btn" ${btnAttr} ${can ? '' : 'disabled'} style="background-image:url(${A('btn_melhorar.png')})" aria-label="${tr('Melhorar', 'Upgrade')}"></button>`;
+    <button class="img-btn" ${btnAttr} ${can ? '' : 'disabled'} style="background-image:url(${A(AL('btn_melhorar.png'))})" aria-label="${tr('Melhorar', 'Upgrade')}">${EN() ? '<span class="al dk btn-al">UPGRADE</span>' : ''}</button>`;
 }
 function openUpgrades() {
   if (S.trip) { toast(tr('🚙 Volte para a base primeiro!', '🚙 Go back to the base first!')); return go('explore'); }
   const M = [15, 62]; // canto do modal na tela
   const at = ([x, y, w, h]) => pos([x, y, w, h]);
   const segs = (n, on, cls, r) => `<div class="levels ${cls}" style="${at(r)}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</div>`;
-  let h = `<img src="${A('modal_upg.webp')}" style="width:100%;height:100%;display:block" alt="${tr('Melhorias', 'Upgrades')}">`;
+  let h = `<img src="${A(AL('modal_upg.webp'))}" style="width:100%;height:100%;display:block" alt="${tr('Melhorias', 'Upgrades')}">`;
+  if (EN()) h += [[146, 49, 'UPGRADES', 21], [112, 118, 'BASE UPGRADE', 11.5, 'l'], [113, 204, 'FARM<br>UPGRADE', 12, 'l'], [113, 304, 'ROCKET<br>REPAIR', 12, 'l'], [250, 151, 'MAX', 10]].map(artLabel).join('');
   // textos pequenos da arte ficam borrados: substituídos por texto nítido (e que diz o efeito real)
   const desc = (r, bg, txt) => `<div class="updesc" style="${at(r)};background:${bg}"><span>${txt}</span></div>`;
   const nextR = S.rocket < 5 ? ROCKET[S.rocket] : null;
@@ -748,7 +779,7 @@ function openUpgrades() {
   // plantação
   h += segs(4, S.farmLvl, 'cyan', [110, 246, 86, 16]) + `<div class="lvtxt" style="${at([112, 263, 84, 12])}">${tr('Nível', 'Level')} ${S.farmLvl} / 4</div>`;
   if (S.farmLvl < 4) { const c = scaled(UPG.farm.costs[S.farmLvl - 1]); h += `<div class="costbox" style="${at([212, 190, 72, 84])}">${costBox(c, ['e', 's'], 'data-up="farm"', canPay(c))}</div>`; }
-  else h += `<div class="maxbadge" style="${at([218, 196, 62, 64])}"></div>`;
+  else h += `<div class="maxbadge" style="${at([218, 196, 62, 64])}${EN() ? `;background-image:url(${A(AL('badge_maximo.png'))})` : ''}">${EN() ? '<span class="al btn-al" style="top:75%;font-size:9.5px">MAX</span>' : ''}</div>`;
   // foguete
   h += segs(5, S.rocket, 'cyan', [110, 351, 92, 16]) + `<div class="lvtxt" style="${at([112, 368, 92, 12])}">${tr('Nível', 'Level')} ${S.rocket} / 5</div>`;
   if (S.rocket < 5) { const c = scaled(ROCKET[S.rocket]); h += `<div class="costbox" style="${at([212, 287, 72, 98])}">${costBox(c, ['e', 'o', 's'], 'data-rocket', canPay(c))}</div>`; }
@@ -1170,7 +1201,7 @@ function positionVid() {
 }
 function setBackdrop(cfg) {
   const b = $('#backdrop');
-  b.style.backgroundImage = cfg ? `url(${A(cfg.bg)})` : 'none';
+  b.style.backgroundImage = cfg ? `url(${A(AL(cfg.bg))})` : 'none';
 }
 window.addEventListener('resize', fit);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);

@@ -302,3 +302,15 @@ body.mobile .screen { left: 0; top: 0; border-radius: 0; box-shadow: 0 0 40px rg
 @keyframes fly { 20% { transform: translateY(6px); } 100% { transform: translateY(-420px); } }
 .confetti { position: absolute; top: -10px; font-size: 18px; animation: fall 3s linear forwards; z-index: 5; }
 @keyframes fall { to { transform: translateY(560px) rotate(540deg); } }
+
+/* textos em inglês escritos sobre a arte (versões *_en das imagens, sem o texto em português) */
+.artlab { pointer-events: none; }
+.al { position: absolute; transform: translate(-50%, -50%); font-family: 'Lilita One', 'Fredoka', sans-serif; font-weight: 400; color: #fff;
+  -webkit-text-stroke: .2em #18214f; paint-order: stroke fill; white-space: nowrap; line-height: 1.02; text-align: center; letter-spacing: .3px; pointer-events: none; }
+.al.t { font-family: 'Fredoka', sans-serif; font-weight: 600; white-space: normal; line-height: 1.2; letter-spacing: 0; -webkit-text-stroke: 0; }
+.al.dk { color: #1d2a5c; -webkit-text-stroke: 0; }
+.al.l { transform: translate(0, -50%); text-align: left; }
+.img-btn { position: relative; }
+.btn-al { left: 50%; top: 50%; font-size: 9px; }
+.colher .btn-al { left: 61%; top: 54%; font-size: 10.5px; }
+.costbox .btn-al { font-size: 9px; top: 47%; }
